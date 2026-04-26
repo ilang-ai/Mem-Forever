@@ -1,0 +1,11 @@
+{
+  "name": "mem-forever",
+  "description": "Every AI tool forgets you. This one doesn't. Ever. Auto-saves your preferences, decisions, and lessons to .ilang/ — survives every session, every tool, every migration.",
+  "version": "1.0.0",
+  "author": {
+    "name": "I-Lang Protocol"
+  },
+  "homepage": "https://github.com/ilang-ai/Mem-Forever",
+  "repository": "https://github.com/ilang-ai/Mem-Forever",
+  "license": "MIT"
+}

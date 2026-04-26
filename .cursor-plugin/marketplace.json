@@ -1,0 +1,15 @@
+{
+  "name": "ilang-plugins",
+  "owner": {
+    "name": "I-Lang Protocol",
+    "email": "info@ilang.ai"
+  },
+  "plugins": [
+    {
+      "name": "mem-forever",
+      "source": ".",
+      "description": "Every AI tool forgets you. This one doesn't. Ever. Auto-saves your preferences, decisions, and lessons. Survives every session, every tool, every migration.",
+      "version": "1.0.0"
+    }
+  ]
+}

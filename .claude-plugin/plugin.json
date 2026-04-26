@@ -1,0 +1,49 @@
+{
+  "name": "mem-forever",
+  "version": "1.0.0",
+  "description": "Every AI tool forgets you. This one doesn't. Ever. Auto-saves your preferences, decisions, and lessons to .ilang/ — survives every session, every tool, every migration.",
+  "author": {
+    "name": "I-Lang Protocol",
+    "url": "https://github.com/ilang-ai/Mem-Forever"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/ilang-ai/Mem-Forever",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "mem-forever active. Check .ilang/ for uncommitted changes from previous session — if found, commit and push immediately. Then read .ilang/soul.md and .ilang/memory.md. If soul.md is empty or template-only, run onboarding: ask ONE question at a time, casual tone, cover role + work style + preferences. Create soul.md when you have enough. Never say 'DNA', 'gene', 'mutation', 'decay'. Say 'saved some notes' or 'I remember from last time'.",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Session ending. Review this session for decisions, lessons, mistakes fixed, facts discovered. Append to .ilang/memory.md in format: ::DECIDED{}, ::LEARNED{}, ::FACT{}, ::PROGRESS{}. Update .ilang/soul.md if repeated patterns (3x+) or explicit rejections observed. Commit and push .ilang/ now.",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Context compacting. Save all unsaved observations to .ilang/memory.md and .ilang/soul.md. Commit and push .ilang/ now. Compress: patterns not events, max 200 lines.",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

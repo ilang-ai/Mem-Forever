@@ -1,0 +1,6 @@
+{
+  "name": "mem-forever",
+  "version": "1.0.0",
+  "description": "Every AI tool forgets you. This one doesn't. Ever. Auto-saves your preferences, decisions, and lessons across every session.",
+  "contextFile": "GEMINI.md"
+}
