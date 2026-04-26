@@ -1,3 +1,24 @@
+---
+license: mit
+language:
+  - en
+  - zh
+  - ja
+  - ko
+  - es
+  - fr
+  - de
+  - pt
+  - ru
+tags:
+  - i-lang
+  - ai-memory
+  - agent
+  - cross-tool
+  - persistent-memory
+pretty_name: Mem-Forever
+---
+
 # Mem-Forever
 
 > **永久记忆 · 跨会话 · 跨模型**
