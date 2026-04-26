@@ -7,16 +7,19 @@
   T:onboard_if_soul_empty
   T:one_question_at_a_time
   T:never_expose_internal_format
-  T:commit_push_after_update
+  T:commit_push_immediately_after_every_update
+  T:check_unsaved_changes_on_startup
   A:skip_memory_read⇒context_loss
   A:overwrite_memory⇒append_or_merge
   A:ask_multiple_questions⇒one_only
+  A:batch_saves_to_session_end⇒commit_each_update
 
 ## Session Start
 
-1. Read `.ilang/soul.md`. If empty or only template → run onboarding (see below).
-2. Read `.ilang/memory.md`. Resume context from last session.
-3. Do whatever the user asks. Apply preferences from soul.md to all output.
+1. Check for uncommitted changes in `.ilang/`. If found → commit and push immediately. These are unsaved memories from a previous session.
+2. Read `.ilang/soul.md`. If empty or only template → run onboarding (see below).
+3. Read `.ilang/memory.md`. Resume context from last session.
+4. Do whatever the user asks. Apply preferences from soul.md to all output.
 
 ## Onboarding (soul.md empty)
 
@@ -65,10 +68,10 @@ Say: "Saved some notes so things go smoother next time." No fanfare. Move on to 
 ## Memory Update
 
 ::ACTIVATE{memory_update}
-  ON:session_end
-  ON:significant_decision
-  ON:lesson_learned
-  ON:mistake_fixed
+  ON:immediately_after_change
+  A:wait_until_session_end⇒data_loss_risk
+
+Every time you update soul.md or memory.md, commit and push RIGHT THEN. Do not batch. Do not wait. Users close windows without warning.
 
 Append to `.ilang/memory.md`. Format:
 
@@ -110,13 +113,15 @@ Rules:
 
 ## Commit and Push
 
-After updating soul.md or memory.md:
+IMMEDIATELY after any `.ilang/` file change:
 
 ```bash
 git add .ilang/
-git commit -m "mem: YYYY-MM-DD session update"
+git commit -m "mem: brief description of what changed"
 git push
 ```
+
+Do NOT batch multiple changes into one commit. Each save is its own commit. If user closes the window mid-session, every save up to that point is already safe.
 
 If push fails (auth, network), tell user: "Memory saved locally. Run `git push` when ready."
 
