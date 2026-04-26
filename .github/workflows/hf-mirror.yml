@@ -17,5 +17,5 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git remote add hf https://i-Lang:${HF_TOKEN}@huggingface.co/datasets/i-Lang/Mem-Forever || true
+          git remote add hf https://x-token:${HF_TOKEN}@huggingface.co/datasets/i-Lang/Mem-Forever || git remote set-url hf https://x-token:${HF_TOKEN}@huggingface.co/datasets/i-Lang/Mem-Forever
           git push hf main --force
