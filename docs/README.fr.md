@@ -8,7 +8,7 @@
 
 Vous fermez une conversation. Tout ce dont vous avez discuté disparaît. Ce repo est la solution. Votre IA se souvient de qui vous êtes, de ce que vous avez décidé, appris et détesté. Sur tous les outils. Sur toutes les sessions. Pour toujours.
 
-## Installation (2 minutes)
+## Installation (10 secondes)
 
 **Étape 1** : Cliquez sur **"Use this template"** → **Create a new repository** → **Private**.
 
