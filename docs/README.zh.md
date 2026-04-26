@@ -20,7 +20,7 @@
 
 你的AI在每次会话开始时读取这些文件，结束时更新它们，然后commit并push。下次会话、换个工具、下个月、明年：完整上下文，零重复。
 
-## 设置（10秒）
+## 设置（几秒钟）
 
 **第一步**：点击 **"Use this template"** → **Create a new repository** → 设为 **Private**。
 

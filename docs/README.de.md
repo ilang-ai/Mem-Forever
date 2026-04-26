@@ -8,7 +8,7 @@
 
 Du schließt ein Gespräch. Alles, was besprochen wurde, ist weg. Dieses Repo ist die Lösung. Deine KI merkt sich, wer du bist, was du entschieden, gelernt und gehasst hast. Über alle Tools. Über alle Sitzungen. Für immer.
 
-## Einrichtung (10 Sekunden)
+## Einrichtung (Sekunden)
 
 **Schritt 1**: Klicke auf **"Use this template"** → **Create a new repository** → Setze auf **Private**.
 

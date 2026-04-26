@@ -20,7 +20,7 @@ This repo is the fix. Your AI remembers who you are, what you decided, what you 
 
 Your AI reads these files at the start of every session. Updates them at the end. Commits and pushes. Next session, next tool, next month, next year: full context, zero repetition.
 
-## Setup (10 seconds)
+## Setup (seconds)
 
 **Step 1**: Click **"Use this template"** → **Create a new repository** → Set to **Private**.
 

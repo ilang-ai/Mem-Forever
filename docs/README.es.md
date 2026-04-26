@@ -8,7 +8,7 @@
 
 Cierras una conversación. Todo lo que discutiste desaparece. La próxima sesión, empiezas de cero. Este repo lo soluciona. Tu IA recuerda quién eres, qué decidiste, qué aprendiste y qué odias. En todas las herramientas. En todas las sesiones. Para siempre.
 
-## Configuración (10 segundos)
+## Configuración (segundos)
 
 **Paso 1**: Haz clic en **"Use this template"** → **Create a new repository** → Configura como **Private**.
 
