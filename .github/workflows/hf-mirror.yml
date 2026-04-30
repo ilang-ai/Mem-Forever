@@ -24,11 +24,17 @@ jobs:
           cp -r .ilang /tmp/hf-push/
           cp -r docs /tmp/hf-push/
           cp -r skills /tmp/hf-push/
+          cp -r data /tmp/hf-push/
+
+          # Add HF dataset card metadata before README
+          printf '%s\n' '---' 'license: mit' 'tags:' '  - ai-memory' '  - i-lang' '  - ilang-protocol' '  - claude-code' '  - cursor' '  - persistent-memory' 'pretty_name: Mem-Forever - AI Persistent Memory Protocol' 'configs:' '  - config_name: default' '    data_files:' '      - split: train' '        path: data/*.jsonl' '---' '' > /tmp/hf-push/README.md
+          cat README.md >> /tmp/hf-push/README.md
+
           cd /tmp/hf-push
           git init -b main
           git config user.name "ilang-ai"
           git config user.email "ilang-ai@users.noreply.github.com"
           git add -A
           git commit -m "Sync from GitHub"
-          git remote add hf https://i-Lang:${HF_TOKEN}@huggingface.co/datasets/i-Lang/Mem-Forever
+          git remote add hf https://ilangai:${HF_TOKEN}@huggingface.co/datasets/i-Lang/Mem-Forever
           git push hf main --force
