@@ -28,7 +28,7 @@ jobs:
 
           # Add HF dataset card metadata before README
           printf '%s\n' '---' 'license: mit' 'tags:' '  - ai-memory' '  - i-lang' '  - ilang-protocol' '  - claude-code' '  - cursor' '  - persistent-memory' 'pretty_name: Mem-Forever - AI Persistent Memory Protocol' 'configs:' '  - config_name: default' '    data_files:' '      - split: train' '        path: data/*.jsonl' '---' '' > /tmp/hf-push/README.md
-          cat README.md >> /tmp/hf-push/README.md
+          awk '/^---$/{c++; next} c>=2' README.md >> /tmp/hf-push/README.md
 
           cd /tmp/hf-push
           git init -b main
