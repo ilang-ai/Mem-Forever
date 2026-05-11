@@ -4,7 +4,7 @@
 > 基于 I-Lang 协议构建的 AI 持久记忆层。
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v3.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
 [![Tools](https://img.shields.io/badge/works_with-Claude_·_Cursor_·_Codex_·_Copilot_·_Gemini-d4a858?style=flat-square)]()
 
 [English](../README.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
@@ -109,7 +109,7 @@
 
 ## 底层原理
 
-指令文件包含用 [I-Lang v3.0](https://ilang.ai) 编写的行为规则，AI模型能原生解析。它们告诉AI如何提取偏好、格式化记忆、处理冲突、随时间演进你的画像。
+指令文件包含用 [I-Lang v4.0](https://ilang.ai) 编写的行为规则，AI模型能原生解析。它们告诉AI如何提取偏好、格式化记忆、处理冲突、随时间演进你的画像。
 
 你不需要了解I-Lang。你只管和AI对话，它会越来越懂你。
 

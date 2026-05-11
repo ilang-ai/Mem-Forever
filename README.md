@@ -25,7 +25,7 @@ pretty_name: Mem-Forever
 > A persistent memory layer for AI agents, built on the I-Lang protocol.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v3.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
 [![I-Lang L2](https://img.shields.io/badge/I--Lang-L2_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
 [![Tools](https://img.shields.io/badge/works_with-Claude_·_Cursor_·_Codex_·_Copilot_·_Gemini-d4a858?style=flat-square)]()
 
@@ -158,7 +158,7 @@ You never write these files. Your AI does. You can read, edit, or delete them an
 
 ## Under the Hood
 
-The instruction files contain behavioral rules written in [I-Lang v3.0](https://ilang.ai), a structured protocol that AI models parse natively. These rules tell the AI how to extract preferences, format memories, handle conflicts, and evolve your profile over time.
+The instruction files contain behavioral rules written in [I-Lang v4.0](https://ilang.ai), a structured protocol that AI models parse natively. These rules tell the AI how to extract preferences, format memories, handle conflicts, and evolve your profile over time.
 
 You don't need to know I-Lang. You just talk to your AI, and it gets better at working with you.
 
