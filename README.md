@@ -23,6 +23,8 @@ pretty_name: Mem-Forever
 
 > **永久记忆 · 跨会话 · 跨模型**
 > A persistent memory layer for AI agents, built on the I-Lang protocol.
+>
+> I-Lang is the first protocol to formally map Greek mathematical symbols (Σ, Δ, φ, λ, Ω, ∇, μ, Π, ψ, ξ, ζ, θ, ∂) as primitive verbs for AI-to-AI communication, and the first to define a computable vector space for AI judgment (11 dimensions, 4 axioms).
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
 [![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
