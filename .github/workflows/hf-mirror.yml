@@ -11,6 +11,8 @@ env:
 
 jobs:
   mirror:
+    # Template safety gate: never run in repos created from this template (#1)
+    if: github.repository == 'ilang-ai/Mem-Forever'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
