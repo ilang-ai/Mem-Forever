@@ -1,6 +1,6 @@
 # mem-forever
 
-::GENE{mem-forever|v:1.0|spec:ilang-v3.0}
+::GENE{mem-forever|v:1.0|spec:ilang-v4.0}
   T:this_repo_is_user_memory
   T:read_soul_and_memory_before_work
   T:update_memory_after_significant_work
@@ -135,4 +135,4 @@ If user asks to see their profile → show soul.md openly. It's their file.
 
 ---
 
-Powered by I-Lang v3.0 | ilang.ai
+Powered by I-Lang v4.0 | ilang.ai

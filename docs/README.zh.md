@@ -109,7 +109,7 @@
 
 ## 底层原理
 
-指令文件包含用 [I-Lang v4.0](https://ilang.ai) 编写的行为规则，AI模型能原生解析。它们告诉AI如何提取偏好、格式化记忆、处理冲突、随时间演进你的画像。
+指令文件包含用 [I-Lang v4.0](https://ilang.ai) 编写的行为规则，I-Lang 协议已在ChatGPT、Claude、Gemini、DeepSeek、Kimi、Qwen、GLM上测试。它们告诉AI如何提取偏好、格式化记忆、处理冲突、随时间演进你的画像。
 
 你不需要了解I-Lang。你只管和AI对话，它会越来越懂你。
 

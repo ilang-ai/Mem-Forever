@@ -24,11 +24,11 @@ pretty_name: Mem-Forever
 > **永久记忆 · 跨会话 · 跨模型**
 > A persistent memory layer for AI agents, built on the I-Lang protocol.
 >
-> I-Lang is the first protocol to formally map Greek mathematical symbols (Σ, Δ, φ, λ, Ω, ∇, μ, Π, ψ, ξ, ζ, θ, ∂) as primitive verbs for AI-to-AI communication, and the first to define a computable vector space for AI judgment (11 dimensions, 4 axioms).
+> I-Lang is the first protocol to formally map Greek mathematical symbols (Σ, Δ, φ, λ, Ω, ∇, μ, Π, ψ, ξ, ζ, θ, ∂) as primitive verbs for AI-to-AI communication, and the first to define a computable vector space for AI judgment (11 dimensions, 4 axioms, fuzzy-mathematical foundation).
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
 [![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
-[![I-Lang L2](https://img.shields.io/badge/I--Lang-L2_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
+[![I-Lang L0](https://img.shields.io/badge/I--Lang-L0_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
 [![Tools](https://img.shields.io/badge/works_with-Claude_·_Cursor_·_Codex_·_Copilot_·_Gemini-d4a858?style=flat-square)]()
 
 [中文](docs/README.zh.md) | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [Español](docs/README.es.md) | [Français](docs/README.fr.md) | [Deutsch](docs/README.de.md) | [Português](docs/README.pt.md) | [Русский](docs/README.ru.md)
@@ -160,7 +160,7 @@ You never write these files. Your AI does. You can read, edit, or delete them an
 
 ## Under the Hood
 
-The instruction files contain behavioral rules written in [I-Lang v4.0](https://ilang.ai), a structured protocol that AI models parse natively. These rules tell the AI how to extract preferences, format memories, handle conflicts, and evolve your profile over time.
+The instruction files contain behavioral rules written in [I-Lang v4.0](https://ilang.ai), a structured protocol tested across ChatGPT, Claude, Gemini, DeepSeek, Kimi, Qwen and GLM. These rules tell the AI how to extract preferences, format memories, handle conflicts, and evolve your profile over time.
 
 You don't need to know I-Lang. You just talk to your AI, and it gets better at working with you.
 
