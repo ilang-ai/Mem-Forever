@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use Mem-Forever, please cite it as below."
+title: "Mem-Forever: a Git-native persistent memory layer for AI agents"
+abstract: >-
+  Every AI tool forgets a user when the session closes. Mem-Forever keeps the
+  memory in the user's own Git repository as compact I-Lang structures that a
+  person can read and a machine can parse, so preferences, decisions and
+  lessons survive across sessions, tools and models. It needs no installation
+  and no configuration: fork the repository and point the agent at it.
+  Documentation in nine languages.
+type: software
+authors:
+  - given-names: "Long Quan"
+    family-names: "Zhu"
+    orcid: "https://orcid.org/0009-0004-4540-8082"
+    affiliation: "iLang Inc."
+repository-code: "https://github.com/ilang-ai/Mem-Forever"
+url: "https://github.com/ilang-ai/Mem-Forever"
+license: MIT
+version: "1.0.0"
+date-released: "2026-09-21"
+keywords:
+  - AI memory
+  - persistent memory
+  - I-Lang
+  - agent skills
+  - Git-native
+  - cross-tool

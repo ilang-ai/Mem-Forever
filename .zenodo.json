@@ -1,0 +1,37 @@
+{
+  "title": "Mem-Forever: a Git-native persistent memory layer for AI agents",
+  "description": "<p>Every AI tool forgets a user when the session closes. Mem-Forever keeps the memory in the user's own Git repository as compact I-Lang structures that a person can read and a machine can parse, so preferences, decisions and lessons survive across sessions, tools and models. It needs no installation and no configuration: fork the repository and point the agent at it. Documentation in nine languages.</p>",
+  "version": "1.0.0",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Zhu, Long Quan",
+      "orcid": "0009-0004-4540-8082",
+      "affiliation": "iLang Inc."
+    }
+  ],
+  "keywords": [
+    "AI memory",
+    "persistent memory",
+    "I-Lang",
+    "agent skills",
+    "Git-native",
+    "cross-tool"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/ilang-ai/Mem-Forever",
+      "relation": "isSupplementTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://ilang.ai/spec/",
+      "relation": "isDocumentedBy",
+      "resource_type": "publication-technicalnote",
+      "scheme": "url"
+    }
+  ]
+}
