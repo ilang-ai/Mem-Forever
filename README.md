@@ -30,6 +30,7 @@ pretty_name: Mem-Forever
 [![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
 [![I-Lang L0](https://img.shields.io/badge/I--Lang-L0_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
 [![Tools](https://img.shields.io/badge/works_with-Claude_·_Cursor_·_Codex_·_Copilot_·_Gemini-d4a858?style=flat-square)]()
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22865160.svg)](https://doi.org/10.5281/zenodo.22865160)
 
 [中文](docs/README.zh.md) | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [Español](docs/README.es.md) | [Français](docs/README.fr.md) | [Deutsch](docs/README.de.md) | [Português](docs/README.pt.md) | [Русский](docs/README.ru.md)
 
@@ -165,6 +166,10 @@ The instruction files contain behavioral rules written in [I-Lang v4.0](https://
 You don't need to know I-Lang. You just talk to your AI, and it gets better at working with you.
 
 ---
+
+## Citation
+
+[CITATION.cff](CITATION.cff); Zenodo archives each release. Concept DOI [10.5281/zenodo.22865160](https://doi.org/10.5281/zenodo.22865160) (all versions).
 
 ## License
 
