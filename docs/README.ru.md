@@ -1,10 +1,10 @@
 # Вечная Память
 
 > **Mem-Forever · Между сессиями · Между моделями · Между инструментами**
-> Постоянный слой памяти для ИИ-агентов, построенный на протоколе I-Lang.
+> Постоянный слой памяти для ИИ-агентов, построенный на протоколе iLang.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md)
 
@@ -39,4 +39,4 @@ MIT
 
 ---
 
-<sub><a href="https://ilang.ai">I-Lang Protocol</a> · Нативный язык искусственного интеллекта</sub>
+<sub><a href="https://ilang.ai">iLang Protocol</a> · Нативный язык искусственного интеллекта</sub>

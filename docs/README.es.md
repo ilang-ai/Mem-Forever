@@ -1,10 +1,10 @@
 # Memoria Eterna
 
 > **Mem-Forever · Entre sesiones · Entre modelos · Entre herramientas**
-> Capa de memoria persistente para agentes AI, construida sobre el protocolo I-Lang.
+> Capa de memoria persistente para agentes AI, construida sobre el protocolo iLang.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
@@ -39,4 +39,4 @@ MIT
 
 ---
 
-<sub><a href="https://ilang.ai">I-Lang Protocol</a> · El lenguaje nativo de la inteligencia artificial</sub>
+<sub><a href="https://ilang.ai">iLang Protocol</a> · El lenguaje nativo de la inteligencia artificial</sub>

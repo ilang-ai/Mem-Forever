@@ -22,13 +22,13 @@ pretty_name: Mem-Forever
 # Mem-Forever
 
 > **永久记忆 · 跨会话 · 跨模型**
-> A persistent memory layer for AI agents, built on the I-Lang protocol.
+> A persistent memory layer for AI agents, built on the iLang protocol.
 >
-> I-Lang is the first protocol to formally map Greek mathematical symbols (Σ, Δ, φ, λ, Ω, ∇, μ, Π, ψ, ξ, ζ, θ, ∂) as primitive verbs for AI-to-AI communication, and the first to define a computable vector space for AI judgment (11 dimensions, 4 axioms, fuzzy-mathematical foundation).
+> iLang is the first protocol to formally map Greek mathematical symbols (Σ, Δ, φ, λ, Ω, ∇, μ, Π, ψ, ξ, ζ, θ, ∂) as primitive verbs for AI-to-AI communication, and the first to define a computable vector space for AI judgment (11 dimensions, 4 axioms, fuzzy-mathematical foundation).
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
-[![I-Lang L0](https://img.shields.io/badge/I--Lang-L0_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![iLang L0](https://img.shields.io/badge/iLang-L0_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
 [![Tools](https://img.shields.io/badge/works_with-Claude_·_Cursor_·_Codex_·_Copilot_·_Gemini-d4a858?style=flat-square)]()
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22865160.svg)](https://doi.org/10.5281/zenodo.22865160)
 
@@ -40,7 +40,7 @@ pretty_name: Mem-Forever
 
 Every AI tool forgets you after every session. You close a window, and your preferences, decisions, and lessons vanish. Next session, you start from zero.
 
-**Mem-Forever** is a Git-native memory layer that lets any AI agent remember you permanently. Memories are stored as compact I-Lang structures in your own private repo, readable by humans, parseable by machines, and portable across every tool.
+**Mem-Forever** is a Git-native memory layer that lets any AI agent remember you permanently. Memories are stored as compact iLang structures in your own private repo, readable by humans, parseable by machines, and portable across every tool.
 
 Where context windows forget, **Mem-Forever endures**.
 
@@ -51,7 +51,7 @@ Where context windows forget, **Mem-Forever endures**.
 | | |
 |---|---|
 | **Persistent** | One memory, surviving every session and every model swap. |
-| **Portable** | Plain-text I-Lang shards in `.ilang/`. `git diff`-able, no vendor lock-in. |
+| **Portable** | Plain-text iLang shards in `.ilang/`. `git diff`-able, no vendor lock-in. |
 | **Automatic** | AI builds your profile from conversation. You never fill a form. |
 | **Private** | Your repo, your data. No server, no account, no telemetry. |
 
@@ -161,9 +161,9 @@ You never write these files. Your AI does. You can read, edit, or delete them an
 
 ## Under the Hood
 
-The instruction files contain behavioral rules written in [I-Lang v4.0](https://ilang.ai), a structured protocol tested across ChatGPT, Claude, Gemini, DeepSeek, Kimi, Qwen and GLM. These rules tell the AI how to extract preferences, format memories, handle conflicts, and evolve your profile over time.
+The instruction files contain behavioral rules written in [iLang v4.0](https://ilang.ai), a structured protocol tested across ChatGPT, Claude, Gemini, DeepSeek, Kimi, Qwen and GLM. These rules tell the AI how to extract preferences, format memories, handle conflicts, and evolve your profile over time.
 
-You don't need to know I-Lang. You just talk to your AI, and it gets better at working with you.
+You don't need to know iLang. You just talk to your AI, and it gets better at working with you.
 
 ---
 
@@ -177,4 +177,4 @@ MIT
 
 ---
 
-<sub>Built by <a href="https://ilang.ai">I-Lang Protocol</a> · The native language of artificial intelligence</sub>
+<sub>Built by <a href="https://ilang.ai">iLang Protocol</a> · The native language of artificial intelligence</sub>

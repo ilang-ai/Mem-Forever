@@ -1,6 +1,6 @@
 {
   "title": "Mem-Forever: a Git-native persistent memory layer for AI agents",
-  "description": "<p>Every AI tool forgets a user when the session closes. Mem-Forever keeps the memory in the user's own Git repository as compact I-Lang structures that a person can read and a machine can parse, so preferences, decisions and lessons survive across sessions, tools and models. It needs no installation and no configuration: fork the repository and point the agent at it. Documentation in nine languages.</p>",
+  "description": "<p>Every AI tool forgets a user when the session closes. Mem-Forever keeps the memory in the user's own Git repository as compact iLang structures that a person can read and a machine can parse, so preferences, decisions and lessons survive across sessions, tools and models. It needs no installation and no configuration: fork the repository and point the agent at it. Documentation in nine languages.</p>",
   "version": "1.0.0",
   "upload_type": "software",
   "license": "MIT",
@@ -15,7 +15,7 @@
   "keywords": [
     "AI memory",
     "persistent memory",
-    "I-Lang",
+    "iLang",
     "agent skills",
     "Git-native",
     "cross-tool"

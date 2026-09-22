@@ -1,10 +1,10 @@
 # 영원한 기억
 
 > **Mem-Forever · 세션 횡단 · 모델 횡단 · 도구 횡단**
-> I-Lang 프로토콜로 구축된 AI 영구 기억 레이어.
+> iLang 프로토콜로 구축된 AI 영구 기억 레이어.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
@@ -43,4 +43,4 @@ MIT
 
 ---
 
-<sub><a href="https://ilang.ai">I-Lang Protocol</a> · 인공지능의 네이티브 언어</sub>
+<sub><a href="https://ilang.ai">iLang Protocol</a> · 인공지능의 네이티브 언어</sub>

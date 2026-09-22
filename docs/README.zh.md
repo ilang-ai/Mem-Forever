@@ -1,10 +1,10 @@
 # 永久记忆
 
 > **Mem-Forever · 跨会话 · 跨模型 · 跨工具**
-> 基于 I-Lang 协议构建的 AI 持久记忆层。
+> 基于 iLang 协议构建的 AI 持久记忆层。
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
 [![Tools](https://img.shields.io/badge/works_with-Claude_·_Cursor_·_Codex_·_Copilot_·_Gemini-d4a858?style=flat-square)]()
 
 [English](../README.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
@@ -15,7 +15,7 @@
 
 所有AI工具都会在会话结束后忘记你。你关掉窗口，偏好、决策、教训全部消失。下次打开，从零开始。
 
-**Mem-Forever** 是一个基于Git的记忆层，让任何AI工具永久记住你。记忆以 I-Lang 结构化格式存储在你自己的私有仓库中。人类可读，机器可解析，跨工具通用。
+**Mem-Forever** 是一个基于Git的记忆层，让任何AI工具永久记住你。记忆以 iLang 结构化格式存储在你自己的私有仓库中。人类可读，机器可解析，跨工具通用。
 
 上下文窗口会遗忘，**Mem-Forever 不会**。
 
@@ -109,9 +109,9 @@
 
 ## 底层原理
 
-指令文件包含用 [I-Lang v4.0](https://ilang.ai) 编写的行为规则，I-Lang 协议已在ChatGPT、Claude、Gemini、DeepSeek、Kimi、Qwen、GLM上测试。它们告诉AI如何提取偏好、格式化记忆、处理冲突、随时间演进你的画像。
+指令文件包含用 [iLang v4.0](https://ilang.ai) 编写的行为规则，iLang 协议已在ChatGPT、Claude、Gemini、DeepSeek、Kimi、Qwen、GLM上测试。它们告诉AI如何提取偏好、格式化记忆、处理冲突、随时间演进你的画像。
 
-你不需要了解I-Lang。你只管和AI对话，它会越来越懂你。
+你不需要了解iLang。你只管和AI对话，它会越来越懂你。
 
 ---
 
@@ -121,4 +121,4 @@ MIT
 
 ---
 
-<sub>由 <a href="https://ilang.ai">I-Lang Protocol</a> 构建 · 人工智能的原生语言</sub>
+<sub>由 <a href="https://ilang.ai">iLang Protocol</a> 构建 · 人工智能的原生语言</sub>

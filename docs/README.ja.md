@@ -1,10 +1,10 @@
 # 永久記憶
 
 > **Mem-Forever · セッション横断 · モデル横断 · ツール横断**
-> I-Lang プロトコルで構築された AI 永続記憶層。
+> iLang プロトコルで構築された AI 永続記憶層。
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-I--Lang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
@@ -12,7 +12,7 @@
 
 ## 概要
 
-すべてのAIツールはセッション終了後にあなたを忘れる。**Mem-Forever** はGitベースの記憶層で、あらゆるAIツールにあなたを永続的に記憶させる。記憶はプライベートリポジトリにI-Lang構造化形式で保存される。
+すべてのAIツールはセッション終了後にあなたを忘れる。**Mem-Forever** はGitベースの記憶層で、あらゆるAIツールにあなたを永続的に記憶させる。記憶はプライベートリポジトリにiLang構造化形式で保存される。
 
 コンテキストウィンドウは忘れる。**Mem-Forever は忘れない**。
 
@@ -47,4 +47,4 @@ MIT
 
 ---
 
-<sub><a href="https://ilang.ai">I-Lang Protocol</a> · 人工知能のネイティブ言語</sub>
+<sub><a href="https://ilang.ai">iLang Protocol</a> · 人工知能のネイティブ言語</sub>
