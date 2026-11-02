@@ -8,6 +8,8 @@
 
 [English](../README.md) | [中文](README.zh.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
+> ⚠️ この翻訳はまだ Mem-Forever 1.0 の内容です。2.0 の変更点（新しいレイアウト、ハンドオフ、vault、`brain.py`）は未翻訳です。[README.md](../README.md)（英語）または [README.zh.md](README.zh.md)（中国語）を参照してください。
+
 ---
 
 ## 概要
@@ -37,7 +39,9 @@
 
 ## 別のプロジェクトで作業中？
 
-> *私のメモリリポジトリは `https://github.com/YOUR_USERNAME/mem-forever` にある。PAT: `ghp_xxx`。クローンして `.ilang/` を読んで、このプロジェクトに戻ってきて。*
+> *私の記憶リポジトリは `https://github.com/YOUR_USERNAME/brain` にある。そこの `BRAIN.md` を読んでから、ここに戻ってきて。*
+
+リポジトリへのアクセスはエージェントのコネクタ（GitHub 連携）かローカルの clone で与える。トークンをプロンプトに貼らない。
 
 ---
 

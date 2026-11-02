@@ -8,6 +8,8 @@
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
+> ⚠️ 이 번역은 아직 Mem-Forever 1.0 기준입니다. 2.0의 변경 사항(새 레이아웃, 핸드오프, vault, `brain.py`)은 아직 번역되지 않았습니다. [README.md](../README.md)(영어) 또는 [README.zh.md](README.zh.md)(중국어)를 참고하세요.
+
 ---
 
 ## 개요
