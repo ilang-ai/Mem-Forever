@@ -36,7 +36,7 @@ Memory text never carries a credential value. It carries a marker:
 [REDACTED <kind> <fingerprint>]
 ```
 
-`kind` is a lower-case slug that says which key it is and whose (for example `root-password-hub`, `cloudflare-account-id-main`). `fingerprint` is derived from the value: strip a well-known vendor prefix if there is one (the OpenAI-style, GitHub token, and similar prefixes the tool knows), then take the first 4 and last 4 characters when the remainder is 24 characters or longer, otherwise the first 2 and last 2, joined by `...`. Short values show fewer characters on purpose, so a ten-character password does not leak most of itself through its fingerprint.
+`kind` is a lower-case slug that says which key it is and whose (for example `db-password-staging`, `cloud-account-id-main`). `fingerprint` is derived from the value: strip a well-known vendor prefix if there is one (the OpenAI-style, GitHub token, and similar prefixes the tool knows), then take the first 4 and last 4 characters when the remainder is 24 characters or longer, otherwise the first 2 and last 2, joined by `...`. Short values show fewer characters on purpose, so a ten-character password does not leak most of itself through its fingerprint.
 
 The same value in several places gets the same marker, and the bundle stores it once. A marker whose value cannot be found in the source (because the source itself only ever held a fingerprint) is listed as `unresolved` in the bundle and in the tool's output; the tool never guesses.
 
