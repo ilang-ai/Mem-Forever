@@ -68,8 +68,23 @@ brain.py v1.1  可移植 Agent 大脑（brain 仓库）的单文件工具。
       !! junction 之后，仓库里的 git checkout -- memory、git clean、git reset --hard 都会直接
          改写本机正在用的记忆，操作仓库前先想这一点。
 
-附件 E 里的其余命令（init / sync / status / handoff / export-drive）
-本版只占位，退出码 2。
+  export-drive [--to 目录] [--account 账号]
+      生成 mirror/brain-index.md（OKF 头 + BRAIN.md 全文 + soul/ 全文 + handoff/CURRENT.md
+      全文 + memory/MEMORY.md 全文），打印字节数与粗估 token（字节/2.5，只是估算），
+      粗估超过 8k 打 WARN 不阻止。然后跑一遍密钥扫描，有命中就拒绝导出。
+      给了 --to：把索引、memory/*.md、soul/ 非隐藏文件、handoff/CURRENT.md 一对一复制到
+      目标同名路径，按 sha256 只复制有变化的，目标 memory/ soul/ handoff/ 里多出的文件删掉
+      （只删这三个子目录里的普通文件，不碰目标根下别的东西，不碰隐藏文件与 desktop.ini），
+      打印 copied / unchanged / deleted；目标路径与账号写进 env/drive.json（folder_id 留给
+      连接器补）。目标是 Drive 桌面版的同步文件夹时，上传由桌面版自动完成。
+      没给 --to：只生成索引并列出要镜像的文件清单。
+
+  status [--json]
+      未提交改动数、未推送提交数（无远端或无上游就说明）、距上次提交多久、
+      handoff/CURRENT.md 的 status / opened / claimed_by。有未提交或未推送（含无远端）
+      退出码 1，备份脚本据此告警；--json 给脚本读。
+
+附件 E 里的其余命令（init / sync / handoff）本版只占位，退出码 2。
 """
 from __future__ import annotations
 
@@ -254,6 +269,26 @@ def iter_repo_files(repo: Path):
             yield p
 
 
+def secret_scan(repo: Path) -> tuple[list[str], list[str], int]:
+    """全仓库密钥形态扫描。返回 (命中列表, 警告列表, 扫过的文件数)；命中只报 文件:行:形态，不回显内容。"""
+    hits: list[str] = []
+    warnings: list[str] = []
+    scanned = 0
+    for p in iter_repo_files(repo):
+        rel = p.relative_to(repo).as_posix()
+        try:
+            text = p.read_bytes().decode("utf-8")
+        except UnicodeDecodeError:
+            warnings.append(f"{rel}: not UTF-8, skipped by secret scan")
+            continue
+        scanned += 1
+        for n, line in enumerate(text.splitlines(), 1):
+            for label, rx in SECRET_PATTERNS:
+                if rx.search(line):
+                    hits.append(f"{rel}:{n}: secret-like token ({label})")
+    return hits, warnings, scanned
+
+
 def cmd_check(repo: Path) -> int:
     errors: list[str] = []
     warnings: list[str] = []
@@ -337,19 +372,9 @@ def cmd_check(repo: Path) -> int:
                 warnings.append(f"{rel}: generated present but generated.by missing")
 
     # 4. 密钥前缀扫描：全仓库，只报位置不回显
-    scanned = 0
-    for p in iter_repo_files(repo):
-        rel = p.relative_to(repo).as_posix()
-        try:
-            text = p.read_bytes().decode("utf-8")
-        except UnicodeDecodeError:
-            warnings.append(f"{rel}: not UTF-8, skipped by secret scan")
-            continue
-        scanned += 1
-        for n, line in enumerate(text.splitlines(), 1):
-            for label, rx in SECRET_PATTERNS:
-                if rx.search(line):
-                    errors.append(f"{rel}:{n}: secret-like token ({label})")
+    hits, scan_warnings, scanned = secret_scan(repo)
+    errors += hits
+    warnings += scan_warnings
 
     # 5. 字节上限（代理指标）
     for rel, limit in BYTE_LIMITS.items():
@@ -1002,9 +1027,196 @@ def cmd_install(repo: Path, cc_home: Path, project_dir: Path, date: str, dry_run
     return 1 if problems else 0
 
 
+# ----------------------------------------------------------------- export-drive
+
+INDEX_REL = "mirror/brain-index.md"
+MIRROR_SUBDIRS = ("memory", "soul", "handoff")
+MIRROR_KEEP = {"desktop.ini"}          # 同步客户端自己放的东西，不当多余文件删
+TOKEN_ESTIMATE_DIVISOR = 2.5           # 中英混排的粗估：字节数 / 2.5 ≈ token 数
+INDEX_TOKEN_WARN = 8000
+
+
+def _mirror_plan(repo: Path) -> list[tuple[str, Path]]:
+    """要一对一镜像的文件：索引单文件、memory/*.md、soul/ 下非隐藏文件、handoff/CURRENT.md。"""
+    plan: list[tuple[str, Path]] = [("brain-index.md", repo / INDEX_REL)]
+    plan += [(f"memory/{p.name}", p) for p in sorted((repo / "memory").glob("*.md"))]
+    soul = repo / "soul"
+    if soul.is_dir():
+        plan += [(f"soul/{p.name}", p) for p in sorted(soul.iterdir()) if p.is_file() and not p.name.startswith(".")]
+    cur = repo / "handoff" / "CURRENT.md"
+    if cur.is_file():
+        plan.append(("handoff/CURRENT.md", cur))
+    return plan
+
+
+def build_index(repo: Path) -> str:
+    """mirror/brain-index.md 的正文：OKF 头 + BRAIN.md 全文 + soul/ 全文 + handoff/CURRENT.md 全文 + memory/MEMORY.md 全文。"""
+    def section(title: str, text: str) -> str:
+        return f"\n\n<!-- ===== {title} ===== -->\n\n{text.strip()}\n"
+
+    def read_or(p: Path, missing: str) -> str:
+        return read_text(p) if p.is_file() else missing
+
+    head = ["---", "type: index", "name: brain-index",
+            "description: Single-file index for mirrors (Drive, project knowledge): BRAIN.md, soul/, handoff/CURRENT.md, memory/MEMORY.md. Generated; do not edit.",
+            "generated:", f"  by: {GENERATED_BY}", f"  at: {_now_iso()}", "---", "", "# brain-index", "",
+            "Read in this order. Single memory files are mirrored next to this file under memory/; open one only when needed."]
+    out = "\n".join(head)
+    out += section("BRAIN.md", read_or(repo / "BRAIN.md", "(BRAIN.md missing)"))
+    soul_files = [p for p in sorted((repo / "soul").glob("*")) if p.is_file() and not p.name.startswith(".")] if (repo / "soul").is_dir() else []
+    if soul_files:
+        for p in soul_files:
+            out += section(f"soul/{p.name}", read_text(p))
+    else:
+        out += section("soul/", "soul/ 尚未写（soul/ not written yet）")
+    out += section("handoff/CURRENT.md", read_or(repo / "handoff" / "CURRENT.md", "(handoff/CURRENT.md missing)"))
+    out += section("memory/MEMORY.md", read_or(repo / "memory" / "MEMORY.md", "(memory/MEMORY.md missing)"))
+    return out
+
+
+def cmd_export_drive(repo: Path, to: Path | None, account: str | None) -> int:
+    index_path = repo / INDEX_REL
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    text = build_index(repo)
+    index_path.write_bytes(text.encode("utf-8"))
+    size = index_path.stat().st_size
+    est = round(size / TOKEN_ESTIMATE_DIVISOR)
+    print(f"index   {INDEX_REL}: {size} bytes, ≈{est} tokens (estimate: bytes/{TOKEN_ESTIMATE_DIVISOR}; measure with a real counter before relying on it)")
+    if est > INDEX_TOKEN_WARN:
+        print(f"WARN    index estimate {est} > {INDEX_TOKEN_WARN} tokens; trim BRAIN.md / soul / MEMORY.md")
+
+    hits, scan_warnings, scanned = secret_scan(repo)
+    for w in scan_warnings:
+        print(f"WARN    {w}")
+    if hits:
+        for h in hits:
+            print(f"ERROR   {h}")
+        print(f"export-drive: refused, {len(hits)} secret-like hits in {scanned} files; nothing copied")
+        return 1
+    print(f"scan    {scanned} files, 0 secret-like hits")
+
+    plan = _mirror_plan(repo)
+    if to is None:
+        print("files to mirror (pass --to <dir> to copy):")
+        for rel, _ in plan:
+            print(f"        {rel}")
+        print(f"export-drive: index written, {len(plan)} files listed, no --to given")
+        return 0
+
+    to.mkdir(parents=True, exist_ok=True)
+    for sub in MIRROR_SUBDIRS:
+        (to / sub).mkdir(exist_ok=True)
+    copied = unchanged = deleted = 0
+    wanted: set[str] = set()
+    for rel, src in plan:
+        wanted.add(rel)
+        dst = to / Path(rel)
+        data = src.read_bytes()
+        if dst.is_file() and _sha256(dst.read_bytes()) == _sha256(data):
+            unchanged += 1
+            continue
+        dst.write_bytes(data)
+        _copy_mtime(src, dst)
+        copied += 1
+    for sub in MIRROR_SUBDIRS:
+        for p in sorted((to / sub).iterdir()):
+            if p.is_file() and not p.name.startswith(".") and p.name not in MIRROR_KEEP and f"{sub}/{p.name}" not in wanted:
+                p.unlink()
+                deleted += 1
+                print(f"delete  {sub}/{p.name}")
+    print(f"export-drive: copied={copied} unchanged={unchanged} deleted={deleted} -> {to} ({len(plan)} files)")
+
+    drive_json = repo / "env" / "drive.json"
+    info: dict = {}
+    if drive_json.is_file():
+        try:
+            info = json.loads(drive_json.read_bytes().decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            info = {}
+    info["target"] = str(to)
+    info["account"] = account or info.get("account", "")
+    info.setdefault("folder_id", "")
+    info["files"] = len(plan)
+    info["updated"] = _now_iso()
+    drive_json.parent.mkdir(parents=True, exist_ok=True)
+    drive_json.write_bytes((json.dumps(info, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
+    print(f"drive   env/drive.json updated (folder_id {'set' if info['folder_id'] else 'empty, fill in via the Drive connector'})")
+    return 0
+
+
+# --------------------------------------------------------------------- status
+
+def _git(repo: Path, *args: str) -> tuple[int, str]:
+    try:
+        r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    except OSError as e:
+        return 127, str(e)
+    return r.returncode, r.stdout.strip()
+
+
+def _human_age(seconds: float) -> str:
+    seconds = max(0, int(seconds))
+    d, rem = divmod(seconds, 86400)
+    h, rem = divmod(rem, 3600)
+    m = rem // 60
+    return f"{d}d {h}h {m}m" if d else (f"{h}h {m}m" if h else f"{m}m")
+
+
+def cmd_status(repo: Path, as_json: bool) -> int:
+    """3.7：未提交改动数、未推送提交数（无远端就说无远端）、距上次提交多久、handoff 状态。有未提交或未推送退出码 1。"""
+    rc, porcelain = _git(repo, "status", "--porcelain")
+    if rc != 0:
+        print(f"ERROR not a git repository: {repo}")
+        return 1
+    uncommitted = len([ln for ln in porcelain.splitlines() if ln.strip()])
+    _, branch = _git(repo, "branch", "--show-current")
+    _, remotes = _git(repo, "remote")
+    remotes_list = remotes.split()
+    rc_up, upstream = _git(repo, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+    if not remotes_list:
+        unpushed: int | None = None
+        push_note = "no remote"
+    elif rc_up != 0:
+        unpushed = None
+        push_note = f"branch {branch} has no upstream"
+    else:
+        _, n = _git(repo, "rev-list", "--count", "@{u}..HEAD")
+        unpushed = int(n or 0)
+        push_note = f"vs {upstream}"
+    _, ts = _git(repo, "log", "-1", "--format=%ct")
+    _, last_subject = _git(repo, "log", "-1", "--format=%h %s")
+    since_commit = _human_age(datetime.now().timestamp() - int(ts)) if ts else "n/a"
+    _, total = _git(repo, "rev-list", "--count", "HEAD")
+    handoff: dict = {}
+    cur = repo / "handoff" / "CURRENT.md"
+    if cur.is_file():
+        try:
+            fm = load_frontmatter(cur)
+            if isinstance(fm, dict):
+                handoff = {k: fm.get(k) for k in ("status", "opened", "claimed_by", "project")}
+        except (FrontmatterError, UnicodeDecodeError) as e:
+            handoff = {"error": str(e)}
+    alert = uncommitted > 0 or unpushed is None or unpushed > 0
+    report = {
+        "repo": str(repo), "branch": branch, "commits": int(total or 0), "uncommitted": uncommitted,
+        "unpushed": unpushed, "push_note": push_note, "last_commit": last_subject, "since_last_commit": since_commit,
+        "handoff": handoff, "alert": alert, "checked_at": _now_iso(),
+    }
+    if as_json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print(f"repo:        {repo} ({branch}, {report['commits']} commits)")
+        print(f"uncommitted: {uncommitted}")
+        print(f"unpushed:    {unpushed if unpushed is not None else 'n/a'} ({push_note})")
+        print(f"last commit: {last_subject}  ({since_commit} ago)")
+        print(f"handoff:     status={handoff.get('status')} opened={handoff.get('opened')} claimed_by={handoff.get('claimed_by')}")
+        print(f"status: {'ALERT' if alert else 'ok'} (uncommitted or unpushed work exists)" if alert else "status: ok")
+    return 1 if alert else 0
+
+
 # ------------------------------------------------------------------------ main
 
-NOT_YET = ("init", "sync", "status", "handoff", "export-drive")
+NOT_YET = ("init", "sync", "handoff")
 
 
 def main(argv=None) -> int:
@@ -1057,6 +1269,15 @@ def main(argv=None) -> int:
     i.add_argument("--date", help="备份目录名 memory.pre-junction-<日期>；默认今天")
     i.add_argument("--dry-run", action="store_true", help="只打印要做什么，不改任何东西")
 
+    e = sub.add_parser("export-drive", help="生成 mirror/brain-index.md；--to 时把索引、memory/、soul/、handoff/CURRENT.md 一对一镜像到目录")
+    e.add_argument("--repo", default=str(default_repo))
+    e.add_argument("--to", help="镜像目标目录（例如 Drive 桌面版的同步文件夹）；缺省只生成索引并列清单")
+    e.add_argument("--account", help="写进 env/drive.json 的账号")
+
+    s = sub.add_parser("status", help="未提交改动、未推送提交、距上次提交、handoff 状态；有未提交或未推送退出码 1")
+    s.add_argument("--repo", default=str(default_repo))
+    s.add_argument("--json", action="store_true", help="JSON 输出，给备份脚本用")
+
     for name in NOT_YET:
         n = sub.add_parser(name, help="本版未实现（附件 E）")
         n.add_argument("rest", nargs="*")
@@ -1064,6 +1285,10 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     if args.cmd == "check":
         return cmd_check(Path(args.repo).resolve())
+    if args.cmd == "export-drive":
+        return cmd_export_drive(Path(args.repo).resolve(), Path(args.to) if args.to else None, args.account)
+    if args.cmd == "status":
+        return cmd_status(Path(args.repo).resolve(), args.json)
     if args.cmd == "install":
         repo = Path(args.repo).resolve()
         cc_home = Path(args.cc_home).expanduser() if args.cc_home else Path.home() / ".claude"
