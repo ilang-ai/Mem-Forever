@@ -52,8 +52,9 @@ brain.py v1.1  可移植 Agent 大脑（brain 仓库）的单文件工具。
 
   install [--cc-home ~/.claude] [--project-dir 目录] [--date YYYY-MM-DD] [--dry-run]
       工程书 3.9 第一行、4.5：本机 Claude Code 接线。本版只做 CC，其它端不做。
-        1. rules/CLAUDE.md、rules/AGENTS.md 与 ~/.claude/ 同名文件比 sha256：一致 skip，
-           不一致或缺失就停下回报，不覆盖。env/settings.json 同样只比对，不合并。
+        1. rules/CLAUDE.md、rules/AGENTS.md、env/settings.json 与 ~/.claude/ 同名文件比 sha256：
+           仓库里没有就 skip；本机没有就复制过去；一致 skip；不一致就停下回报，不覆盖
+           （settings.json 的合并本版未实现）。
         2. memory junction：~/.claude/projects/<slug>/memory 若是普通目录，先改名成
            memory.pre-junction-<日期>（保留不删），再在原路径建 junction 指向仓库 memory/；
            两步在同一进程里连着做。已是指向仓库的 junction 则 skip。建完验证：是 junction、
@@ -898,20 +899,23 @@ def cmd_install(repo: Path, cc_home: Path, project_dir: Path, date: str, dry_run
     print(f"cc-home:  {cc_home}")
     print(f"project:  {project_dir}  (slug {cc_slug(project_dir)})")
 
-    # 1. rules 与 settings：只比对
-    for name in RULES_FILES:
-        src, dst = repo / "rules" / name, cc_home / name
-        if _same_file(src, dst):
-            print(f"skip     {name}: ~/.claude/{name} identical to rules/{name}")
+    # 1. rules 与 settings：仓库里没有就 skip；本机没有就复制；两边不同就停下不写
+    for rel, dst in [(f"rules/{n}", cc_home / n) for n in RULES_FILES] + [("env/settings.json", cc_home / "settings.json")]:
+        src = repo / rel
+        label = rel.split("/")[-1]
+        if not src.is_file():
+            print(f"skip     {label}: {rel} not in this repo")
+        elif _same_file(src, dst):
+            print(f"skip     {label}: ~/.claude/{label} identical to {rel}")
+        elif not dst.exists():
+            print(f"{tag}copy     {rel} -> {dst}")
+            if not dry_run:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_bytes(src.read_bytes())
         else:
-            print(f"STOP     {name}: ~/.claude/{name} {'missing' if not dst.exists() else 'differs from rules/' + name}; not overwritten")
+            print(f"STOP     {label}: ~/.claude/{label} differs from {rel}; not overwritten"
+                  + (" (merge not implemented in this version)" if label == "settings.json" else ""))
             problems += 1
-    src, dst = repo / "env" / "settings.json", cc_home / "settings.json"
-    if _same_file(src, dst):
-        print("skip     settings.json: identical to env/settings.json (merge not implemented in this version)")
-    else:
-        print(f"STOP     settings.json: {'missing' if not dst.exists() else 'differs from env/settings.json'}; merge not implemented, nothing written")
-        problems += 1
     if problems:
         print(f"install: {problems} problems in step 1; junction not attempted")
         return 1
@@ -973,8 +977,17 @@ def cmd_install(repo: Path, cc_home: Path, project_dir: Path, date: str, dry_run
 
     # 3. soul/dna.md
     dna_src, dna_dst = repo / "soul" / "dna.md", cc_home / ".dna.md"
+    dna_status = None
+    if dna_src.is_file():
+        try:
+            fm = load_frontmatter(dna_src)
+            dna_status = fm.get("status") if isinstance(fm, dict) else None
+        except (FrontmatterError, UnicodeDecodeError):
+            dna_status = None
     if not dna_src.is_file():
         print("skip     .dna.md: soul/dna.md not in repo yet (see handoff blockers)")
+    elif dna_status == "template":
+        print("skip     .dna.md: soul/dna.md is still the template (status: template); nothing to copy")
     elif _same_file(dna_src, dna_dst):
         print("skip     .dna.md: identical")
     elif dna_dst.exists():
