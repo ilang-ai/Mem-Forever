@@ -71,7 +71,7 @@ brain.py v1.1  可移植 Agent 大脑（brain 仓库）的单文件工具。
   export-drive [--to 目录] [--account 账号]
       生成 mirror/brain-index.md（OKF 头 + BRAIN.md 全文 + soul/ 全文 + handoff/CURRENT.md
       全文 + memory/MEMORY.md 全文），打印字节数与粗估 token（字节/2.5，只是估算），
-      粗估超过 8k 打 WARN 不阻止。然后跑一遍密钥扫描，有命中就拒绝导出。
+      粗估超过 16k 打 WARN 不阻止。然后跑一遍密钥扫描，有命中就拒绝导出。
       给了 --to：把索引、memory/*.md、soul/ 非隐藏文件、handoff/CURRENT.md 一对一复制到
       目标同名路径，按 sha256 只复制有变化的，目标 memory/ soul/ handoff/ 里多出的文件删掉
       （只删这三个子目录里的普通文件，不碰目标根下别的东西，不碰隐藏文件与 desktop.ini），
@@ -84,7 +84,22 @@ brain.py v1.1  可移植 Agent 大脑（brain 仓库）的单文件工具。
       handoff/CURRENT.md 的 status / opened / claimed_by。有未提交或未推送（含无远端）
       退出码 1，备份脚本据此告警；--json 给脚本读。
 
-附件 E 里的其余命令（init / sync / handoff）本版只占位，退出码 2。
+  init [目录] [--agent 名] [--no-git]
+      建 3.2 节的目录与骨架文件：BRAIN.md、index.md、log.md、soul/ 两个模板、memory/MEMORY.md、
+      handoff/CURRENT.md、rules/GRAMMAR-CARD.md、env/README.md、.gitignore、各目录 .gitkeep，
+      并把本文件复制进 tools/。已存在的文件一律不覆盖。没有 .git 就 git init（分支 main）。
+
+  sync [--direction both|to-cc|from-cc] [--dry-run]
+      junction 不可用时的兜底：仓库 memory/ 与 ~/.claude/projects/<slug>/memory 双向复制。
+      只在一边的复制过去；两边都有且不同的，mtime 新的覆盖旧的；从不删除。
+      记忆目录已经是指向仓库的 junction 时什么都不做。
+
+  handoff open|claim|close|show [--agent 名] [--project 名] [--task 一句话] [--slug 名] [--no-commit]
+      3.5 节协议。open：没有活跃交接单时按模板新开一份并提交 "handoff: open <project>"。
+      claim：把 agent 追加进 claimed_by、status 改 claimed，提交 "handoff: claim by <agent>"。
+      close：status 改 closed，整文件移到 handoff/archive/YYYY-MM-DD-<slug>.md，新开一份空的
+      CURRENT.md，两步一次提交。show：打印 status / opened / claimed_by 与 PROGRESS 的
+      done / next / unverified 三段，不改任何东西。
 """
 from __future__ import annotations
 
@@ -1033,7 +1048,7 @@ INDEX_REL = "mirror/brain-index.md"
 MIRROR_SUBDIRS = ("memory", "soul", "handoff")
 MIRROR_KEEP = {"desktop.ini"}          # 同步客户端自己放的东西，不当多余文件删
 TOKEN_ESTIMATE_DIVISOR = 2.5           # 中英混排的粗估：字节数 / 2.5 ≈ token 数
-INDEX_TOKEN_WARN = 8000
+INDEX_TOKEN_WARN = 16000       # 3.8 的闸门，2026-11-03 从 8k 放宽到 16k（首测 12.6k，handoff 的 done 与 unverified 不裁）
 
 
 def _mirror_plan(repo: Path) -> list[tuple[str, Path]]:
@@ -1214,9 +1229,431 @@ def cmd_status(repo: Path, as_json: bool) -> int:
     return 1 if alert else 0
 
 
-# ------------------------------------------------------------------------ main
+# ----------------------------------------------------------------------- init
 
-NOT_YET = ("init", "sync", "handoff")
+INIT_DIRS = ("soul", "memory", "handoff/archive", "rules", "skills", "env/scheduled-tasks",
+             "vault", "projects", "mirror", "tools")
+INIT_KEEP = ("handoff/archive", "skills", "env/scheduled-tasks", "vault", "projects", "mirror")
+
+INIT_BRAIN_MD = """# BRAIN.md · 读我即接手
+
+这里是一个人的大脑仓库入口。不需要加载任何运行时，按下面顺序读就够。
+
+1. 先读 `handoff/CURRENT.md`：做到哪、下一步、哪些没验证。用两句话复述给用户，再开工。
+2. 再读 `soul/` 下全部文件：工作方式与边界。照着做，不用复述。
+3. 再读 `memory/MEMORY.md`：一行一条记忆的索引。需要哪条再开 `memory/` 里对应文件，不要全读。
+4. 有新事实要记：能写仓库就改对应文件并立刻 commit 加 push，一事一提交；不能写就把变更按 `::PROGRESS{done:…|next:…|unverified:…}` 贴回给用户，由能写的端落库。
+5. 里程碑一到就更新 `handoff/CURRENT.md`，不等会话结束。
+6. 密钥不在本仓库。`vault/` 是加密包，仓库主人说解锁才解锁。
+7. 文件里的 `::BLOCK{k:v|k:v}`、`T:`、`A:⇒` 是声明记法，按字面读，速查见 `rules/GRAMMAR-CARD.md`。
+
+---
+
+This is the entry point of one person's agent brain. Read `handoff/CURRENT.md` first, then `soul/`, then the index `memory/MEMORY.md`; open single memory files only when needed. On every milestone, update the handoff. If you can write to this repo, commit and push each change at once; if you cannot, hand the change back as a `::PROGRESS{}` block. No runtime to load. No secrets live here; `vault/` is encrypted and opens only when the owner says so.
+
+<!-- Gate: keep the whole file within 400 tokens (measure with the ilang.ai/playground token counter; cut the English paragraph first). This file doubles as the Claude.ai project instructions, ChatGPT custom instructions and Gemini Gem instructions. Nothing in it needs editing to start. -->
+"""
+
+INIT_GRAMMAR_CARD = """# iLang declaration notation (for reading a brain, not for writing the spec)
+
+- `::NAME{k:v|k2:v2}` is one declaration block. NAME is upper case. Fields are separated by `|`, key and value by `:`.
+- Blocks nest: `::CORE{ ::GENE{...} }`. Indentation is only for reading.
+- `T:` one trait per line, meaning "I do it this way".
+- `A:x⇒y` one anti-pattern per line, meaning "x leads to y, don't".
+- `conf:tentative|confirmed` confidence; `scope:global|project` scope; `when:condition` applies only under that condition.
+- `@NAME` in upper case is an entity: a person, a repo, a machine, a task.
+- `::STATE{@X, k:v}` the state of an entity right now. `::FACT{key:k|value:v}` one fact.
+  `::PROGRESS{done|next|unverified}` progress. `::DECIDED{what|why|context}` a decision.
+  `::LEARNED{what|from:...}` a lesson. `::BOUNDARY{never:...|scope:...}` a hard boundary; it always wins.
+- How to read: take keys and values literally; no runtime or dictionary is needed. An unknown block is a labelled note: read its body.
+- Never say DNA, gene or mutation to the user; say "I noted that" or "you told me last time".
+- The full spec is at github.com/ilang-ai/ilang-spec. Reading a brain does not need it.
+"""
+
+INIT_SOUL_MD = """---
+type: profile
+name: soul
+description: Behavioral profile. Your agent writes it from conversation; you can edit it any time.
+status: template
+---
+# Soul
+
+<!-- Auto-generated by your agent during onboarding. Do not fill this in by hand. -->
+<!-- Just start a conversation; it will ask you a few questions, then set status: stable above. -->
+<!-- You can edit it any time. It's your file. -->
+"""
+
+INIT_DNA_MD = """---
+type: profile
+name: dna
+description: Working-style and judgement profile written by Imprint. Optional. brain.py install copies it to ~/.claude/.dna.md.
+status: template
+---
+# DNA
+
+<!-- Optional. If you use Imprint (github.com/ilang-ai/Imprint), keep its .dna.md content here; `python -X utf8 tools/brain.py install` copies it to ~/.claude/.dna.md. -->
+<!-- Without Imprint, leave this file as it is. -->
+"""
+
+INIT_MEMORY_INDEX = """# Memory Index
+
+<!-- One line per file in memory/: `- [Title](file.md) — one-line hook`. -->
+<!-- Your agent appends a line here every time it adds a memory file. Claude Code reads this index natively. -->
+<!-- Keep it an index: no memory content in this file. -->
+"""
+
+INIT_ENV_README = """# env/ — machine environment, no secrets
+
+settings.json (agent CLI settings), mcp.json (key fields as ${VAULT:name}), scheduled-tasks/, ssh_config.template, install.ps1 / install.sh.
+Anything that would let someone act as you goes into vault/ (see docs/VAULT.md or rules/SECRETS.md), never here.
+"""
+
+INIT_GITIGNORE = "__pycache__/\n*.pyc\n*.tmp\n"
+
+HANDOFF_TEMPLATE = """---
+type: handoff
+name: handoff-current
+description: The one active hand-off note. A session that reads status: open claims it first.
+project: {project}
+opened: {opened}
+agent: {agent}
+status: open
+claimed_by: []
+generated:
+  by: {by}
+  at: {opened}
+---
+
+::STATE{{@TASK, name:{task}, repo:{repo}, branch:{branch}, cwd:{cwd}}}
+::PROGRESS{{done:<finished, listed by milestone>|next:<the first thing to do next>|unverified:<claimed done but not tested>}}
+::FACT{{key:where_files_are|value:<paths of deliverables, scripts, logs>}}
+::FACT{{key:blockers|value:<what is stuck and who decides>}}
+::DECIDED{{<what was settled this round>|<why>|<context>}}
+
+## Claim and close
+
+- A new session that reads `status: open`: append yourself to `claimed_by`, set `status: claimed`, commit `handoff: claim by <agent>`.
+- When the task is done: set `status: closed`, move the whole file to `handoff/archive/YYYY-MM-DD-<slug>.md`, open a fresh CURRENT.md; one commit for both steps.
+- Two CURRENT.md files collide: the newer `opened` stays, the older goes to archive.
+- When to write: a deploy succeeded, a config changed, a conclusion was reached, and any moment before the session might be cut off. Do not wait for the session to end.
+"""
+
+
+def _git_branch(repo: Path) -> str:
+    rc, out = _git(repo, "branch", "--show-current")
+    return out if rc == 0 and out else "main"
+
+
+def render_handoff(repo: Path, project: str, task: str, agent: str) -> str:
+    now = _now_iso()
+    return HANDOFF_TEMPLATE.format(project=project, opened=now, agent=agent, by=GENERATED_BY, task=task,
+                                   repo=repo.name, branch=_git_branch(repo), cwd=str(repo))
+
+
+def cmd_init(repo: Path, agent: str, no_git: bool) -> int:
+    """工程书 3.2 的骨架：目录、BRAIN.md、index.md、log.md、soul/ 与 memory/ 与 handoff/ 模板、语法卡、
+    本工具自身复制到 tools/。已存在的文件一律不覆盖。没有 .git 就 git init（分支 main）。"""
+    repo.mkdir(parents=True, exist_ok=True)
+    created: list[str] = []
+    skipped: list[str] = []
+
+    def put(rel: str, text: str) -> None:
+        p = repo / rel
+        if p.exists():
+            skipped.append(rel)
+            return
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(text.encode("utf-8"))
+        created.append(rel)
+
+    for d in INIT_DIRS:
+        (repo / d).mkdir(parents=True, exist_ok=True)
+    for d in INIT_KEEP:
+        put(f"{d}/.gitkeep", "")
+    today = f"{datetime.now():%Y-%m-%d}"
+    put("BRAIN.md", INIT_BRAIN_MD)
+    put("index.md", '---\nokf_version: "0.2"\n---\n')
+    put("log.md", "# Changelog\n\nOne `## YYYY-MM-DD` section per day, newest first, prose bullets (OKF v0.2 reserved file). "
+                  "Record changes to the layout, rules and tools here. Memories go to `memory/`, progress goes to `handoff/CURRENT.md`.\n\n"
+                  f"## {today}\n\n- Repository skeleton created by brain.py init.\n")
+    put("memory/MEMORY.md", INIT_MEMORY_INDEX)
+    put("handoff/CURRENT.md", render_handoff(repo, "global", "<one-line task>", agent))
+    put("rules/GRAMMAR-CARD.md", INIT_GRAMMAR_CARD)
+    put("soul/soul.md", INIT_SOUL_MD)
+    put("soul/dna.md", INIT_DNA_MD)
+    put("env/README.md", INIT_ENV_README)
+    put(".gitignore", INIT_GITIGNORE)
+    me = Path(__file__).resolve()
+    tool = repo / "tools" / "brain.py"
+    if not tool.exists():
+        tool.write_bytes(me.read_bytes())
+        created.append("tools/brain.py")
+    elif tool.resolve() != me:
+        skipped.append("tools/brain.py")
+
+    git_note = "skipped (--no-git)"
+    if not no_git:
+        if (repo / ".git").exists():
+            git_note = "already a repository"
+        else:
+            rc, out = _git(repo, "init", "-q", "-b", "main")
+            if rc != 0:
+                rc, out = _git(repo, "init", "-q")
+                _git(repo, "symbolic-ref", "HEAD", "refs/heads/main")
+            git_note = "git init (branch main)" if rc == 0 else f"git init failed: {out}"
+    for rel in created:
+        print(f"create  {rel}")
+    for rel in skipped:
+        print(f"skip    {rel}: exists")
+    print(f"git:    {git_note}")
+    print(f"init: {len(created)} created, {len(skipped)} kept -> {repo}")
+    print("next:   python -X utf8 tools/brain.py check ; then git add -A && git commit -m 'init: brain skeleton'")
+    return 0
+
+
+# ----------------------------------------------------------------------- sync
+
+def cmd_sync(repo: Path, cc_home: Path, project_dir: Path, direction: str, dry_run: bool) -> int:
+    """junction 不可用时的兜底：仓库 memory/ 与 ~/.claude/projects/<slug>/memory 双向复制。
+    只在一边的复制到另一边；两边都有且不同的，mtime 新的覆盖旧的；从不删除。"""
+    target = (repo / "memory").resolve()
+    link = default_cc_memory_dir(repo, cc_home, project_dir)
+    if _is_junction(link) or link.is_symlink():
+        got = _link_target(link)
+        if got is not None and got.resolve() == target:
+            print(f"skip    {link} is a junction to {target}; nothing to sync")
+            return 0
+        print(f"STOP    {link} is a junction/symlink to {got}, not to {target}")
+        return 1
+    if not target.is_dir():
+        print(f"STOP    {target} missing")
+        return 1
+    tag = "DRY  " if dry_run else ""
+    if not link.is_dir():
+        if direction == "from-cc":
+            print(f"STOP    {link} missing and direction is from-cc")
+            return 1
+        print(f"{tag}mkdir    {link}")
+        if not dry_run:
+            link.mkdir(parents=True, exist_ok=True)
+    names = sorted({p.name for p in target.iterdir() if p.is_file() and not p.name.startswith(".")}
+                   | ({p.name for p in link.iterdir() if p.is_file() and not p.name.startswith(".")} if link.is_dir() else set()))
+    to_cc = from_cc = unchanged = held = 0
+
+    def copy(src: Path, dst: Path, label: str) -> None:
+        print(f"{tag}{label:9s}{src.name}")
+        if not dry_run:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_bytes(src.read_bytes())
+            _copy_mtime(src, dst)
+
+    for name in names:
+        a, b = target / name, link / name
+        if a.is_file() and not b.is_file():
+            if direction in ("both", "to-cc"):
+                copy(a, b, "to-cc")
+                to_cc += 1
+            else:
+                held += 1
+        elif b.is_file() and not a.is_file():
+            if direction in ("both", "from-cc"):
+                copy(b, a, "from-cc")
+                from_cc += 1
+            else:
+                held += 1
+        else:
+            da, db = a.read_bytes(), b.read_bytes()
+            if da == db:
+                unchanged += 1
+                continue
+            newer_is_repo = a.stat().st_mtime >= b.stat().st_mtime
+            if newer_is_repo and direction in ("both", "to-cc"):
+                copy(a, b, "to-cc")
+                to_cc += 1
+            elif not newer_is_repo and direction in ("both", "from-cc"):
+                copy(b, a, "from-cc")
+                from_cc += 1
+            else:
+                held += 1
+    print(f"sync: to-cc={to_cc} from-cc={from_cc} unchanged={unchanged} held={held} ({direction}"
+          + (", dry run" if dry_run else "") + f") {target} <-> {link}")
+    return 0
+
+
+# -------------------------------------------------------------------- handoff
+
+PROGRESS_RE = re.compile(r"^::PROGRESS\{(.*)\}\s*$")
+
+
+def _handoff_path(repo: Path) -> Path:
+    return repo / "handoff" / "CURRENT.md"
+
+
+def _fm_region(lines: list[str]) -> int:
+    """返回闭合 --- 的行号（text.split('\\n') 计），没有 frontmatter 抛 FrontmatterError。"""
+    if not lines or lines[0].rstrip("\r") != FENCE:
+        raise FrontmatterError("no frontmatter")
+    for i in range(1, len(lines)):
+        if lines[i].rstrip("\r") == FENCE:
+            return i
+    raise FrontmatterError("frontmatter not closed")
+
+
+def _set_fm(lines: list[str], close_idx: int, key: str, value: str) -> int:
+    """把顶层 key 的那一行改成 'key: value'，连带删掉它下面的缩进子行；没有就插在闭合 --- 前。返回新的闭合行号。"""
+    cr = "\r" if lines[0].endswith("\r") else ""
+    for i in range(1, close_idx):
+        if re.match(rf"^{re.escape(key)}\s*:", lines[i]):
+            j = i + 1
+            while j < close_idx and (lines[j].startswith(" ") or lines[j].startswith("\t")):
+                j += 1
+            lines[i:j] = [f"{key}: {value}{cr}"]
+            return close_idx - (j - i - 1)
+    lines.insert(close_idx, f"{key}: {value}{cr}")
+    return close_idx + 1
+
+
+def _set_generated_at(lines: list[str], close_idx: int) -> int:
+    cr = "\r" if lines[0].endswith("\r") else ""
+    for i in range(1, close_idx):
+        if re.match(r"^generated\s*:", lines[i]):
+            for j in range(i + 1, close_idx):
+                if re.match(r"^\s+at\s*:", lines[j]):
+                    lines[j] = f"  at: {_now_iso()}{cr}"
+                    return close_idx
+                if not (lines[j].startswith(" ") or lines[j].startswith("\t")):
+                    break
+            lines.insert(i + 1, f"  at: {_now_iso()}{cr}")
+            return close_idx + 1
+    block = ["generated:" + cr, f"  by: {GENERATED_BY}{cr}", f"  at: {_now_iso()}{cr}"]
+    lines[close_idx:close_idx] = block
+    return close_idx + len(block)
+
+
+def _progress_parts(text: str) -> dict[str, str]:
+    for line in text.split("\n"):
+        m = PROGRESS_RE.match(line.rstrip("\r"))
+        if m:
+            body = m.group(1)
+            parts: dict[str, str] = {}
+            keys = ["done", "next", "unverified"]
+            positions = []
+            for k in keys:
+                idx = body.find(("|" if k != "done" else "") + k + ":")
+                if idx >= 0:
+                    positions.append((idx, k))
+            positions.sort()
+            for n, (idx, k) in enumerate(positions):
+                start = idx + len(k) + 1 + (0 if k == "done" else 1)
+                end = positions[n + 1][0] if n + 1 < len(positions) else len(body)
+                parts[k] = body[start:end].strip()
+            return parts
+    return {}
+
+
+def _handoff_commit(repo: Path, message: str, no_commit: bool) -> int:
+    if no_commit:
+        print(f"nocommit {message}")
+        return 0
+    rc, out = _git(repo, "add", "-A", "handoff")
+    if rc != 0:
+        print(f"ERROR git add failed: {out}")
+        return 1
+    rc, out = _git(repo, "commit", "-q", "-m", message)
+    if rc != 0:
+        print(f"ERROR git commit failed: {out}")
+        return 1
+    _, h = _git(repo, "rev-parse", "--short", "HEAD")
+    print(f"commit  {h} {message}")
+    return 0
+
+
+def _slugify(s: str) -> str:
+    s = re.sub(r"[^\w\-]+", "-", s.strip(), flags=re.UNICODE).strip("-")
+    return s[:60] or "task"
+
+
+def cmd_handoff(repo: Path, action: str, agent: str, project: str | None, task: str | None,
+                slug: str | None, no_commit: bool) -> int:
+    cur = _handoff_path(repo)
+    if action == "open":
+        if cur.is_file():
+            try:
+                fm = load_frontmatter(cur)
+                st = fm.get("status") if isinstance(fm, dict) else None
+            except (FrontmatterError, UnicodeDecodeError):
+                st = None
+            if st in ("open", "claimed"):
+                print(f"STOP    {cur} is already {st}; close it first")
+                return 1
+            if st != "closed":
+                print(f"STOP    {cur} exists with status {st!r}; close or remove it first")
+                return 1
+        cur.parent.mkdir(parents=True, exist_ok=True)
+        proj = project or "global"
+        cur.write_bytes(render_handoff(repo, proj, task or "<one-line task>", agent).encode("utf-8"))
+        print(f"open    {cur} (project {proj}, agent {agent})")
+        return _handoff_commit(repo, f"handoff: open {proj}", no_commit)
+
+    if not cur.is_file():
+        print(f"STOP    {cur} missing (handoff open first)")
+        return 1
+    text = read_text(cur)
+    lines = text.split("\n")
+    try:
+        close_idx = _fm_region(lines)
+        fm = parse_yaml([ln.rstrip("\r") for ln in lines[1:close_idx]])
+    except FrontmatterError as e:
+        print(f"ERROR   {cur}: {e}")
+        return 1
+    status = fm.get("status") if isinstance(fm, dict) else None
+    claimed = fm.get("claimed_by") if isinstance(fm, dict) else None
+    claimed = list(claimed) if isinstance(claimed, list) else ([claimed] if claimed else [])
+
+    if action == "show":
+        print(f"file:       {cur}")
+        print(f"project:    {fm.get('project')}")
+        print(f"status:     {status}   opened: {fm.get('opened')}   claimed_by: {claimed}")
+        parts = _progress_parts(text)
+        for k in ("done", "next", "unverified"):
+            print(f"{k:<11} {parts.get(k, '(missing)')}")
+        return 0
+
+    if status not in ("open", "claimed"):
+        print(f"STOP    status is {status!r}; only open or claimed hand-offs can be {action}ed")
+        return 1
+
+    if action == "claim":
+        if agent not in claimed:
+            claimed.append(agent)
+        close_idx = _set_fm(lines, close_idx, "claimed_by", "[" + ", ".join(claimed) + "]")
+        close_idx = _set_fm(lines, close_idx, "status", "claimed")
+        close_idx = _set_generated_at(lines, close_idx)
+        cur.write_bytes("\n".join(lines).encode("utf-8"))
+        print(f"claim   {cur}: claimed_by {claimed}")
+        return _handoff_commit(repo, f"handoff: claim by {agent}", no_commit)
+
+    if action == "close":
+        close_idx = _set_fm(lines, close_idx, "status", "closed")
+        close_idx = _set_generated_at(lines, close_idx)
+        archive_dir = cur.parent / "archive"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        name = f"{datetime.now():%Y-%m-%d}-{_slugify(slug or str(fm.get('project') or 'task'))}.md"
+        dest = archive_dir / name
+        if dest.exists():
+            print(f"STOP    {dest} exists; pass another --slug")
+            return 1
+        dest.write_bytes("\n".join(lines).encode("utf-8"))
+        proj = project or str(fm.get("project") or "global")
+        cur.write_bytes(render_handoff(repo, proj, task or "<one-line task>", agent).encode("utf-8"))
+        print(f"close   -> handoff/archive/{name}; fresh CURRENT.md (project {proj})")
+        return _handoff_commit(repo, f"handoff: close {name[:-3]}; fresh CURRENT.md", no_commit)
+
+    print(f"ERROR   unknown handoff action {action!r}")
+    return 2
+
+
+# ------------------------------------------------------------------------ main
 
 
 def main(argv=None) -> int:
@@ -1278,13 +1715,41 @@ def main(argv=None) -> int:
     s.add_argument("--repo", default=str(default_repo))
     s.add_argument("--json", action="store_true", help="JSON 输出，给备份脚本用")
 
-    for name in NOT_YET:
-        n = sub.add_parser(name, help="本版未实现（附件 E）")
-        n.add_argument("rest", nargs="*")
+    n = sub.add_parser("init", help="建 3.2 节目录与骨架文件（已有的不覆盖），没有 .git 就 git init")
+    n.add_argument("target", nargs="?", help="仓库目录；缺省当前工作目录")
+    n.add_argument("--agent", help="写进 handoff 模板的 agent 名；默认环境变量 BRAIN_AGENT 或 brain.py")
+    n.add_argument("--no-git", action="store_true", help="不做 git init")
+
+    y = sub.add_parser("sync", help="junction 不可用时的兜底：memory/ 与 ~/.claude/projects/<slug>/memory 双向复制，从不删除")
+    y.add_argument("--repo", default=str(default_repo))
+    y.add_argument("--cc-home", help="默认 ~/.claude")
+    y.add_argument("--project-dir", help="算 slug 用的项目目录；默认仓库上一级目录")
+    y.add_argument("--direction", choices=("both", "to-cc", "from-cc"), default="both")
+    y.add_argument("--dry-run", action="store_true")
+
+    h = sub.add_parser("handoff", help="3.5 协议：open / claim / close / show")
+    h.add_argument("action", choices=("open", "claim", "close", "show"))
+    h.add_argument("--repo", default=str(default_repo))
+    h.add_argument("--agent", help="默认环境变量 BRAIN_AGENT 或 brain.py")
+    h.add_argument("--project", help="open / close 时写进新 CURRENT.md 的 project")
+    h.add_argument("--task", help="open / close 时写进 ::STATE 的一句话任务")
+    h.add_argument("--slug", help="close 时归档文件名 YYYY-MM-DD-<slug>.md 的 slug；默认用 project")
+    h.add_argument("--no-commit", action="store_true", help="只改文件不提交")
 
     args = ap.parse_args(argv)
+    agent_default = os.environ.get("BRAIN_AGENT") or "brain.py"
     if args.cmd == "check":
         return cmd_check(Path(args.repo).resolve())
+    if args.cmd == "init":
+        return cmd_init(Path(args.target).resolve() if args.target else Path.cwd(), args.agent or agent_default, args.no_git)
+    if args.cmd == "sync":
+        repo = Path(args.repo).resolve()
+        cc_home = Path(args.cc_home).expanduser() if args.cc_home else Path.home() / ".claude"
+        project_dir = Path(args.project_dir).resolve() if args.project_dir else repo.parent
+        return cmd_sync(repo, cc_home, project_dir, args.direction, args.dry_run)
+    if args.cmd == "handoff":
+        return cmd_handoff(Path(args.repo).resolve(), args.action, args.agent or agent_default,
+                           args.project, args.task, args.slug, args.no_commit)
     if args.cmd == "export-drive":
         return cmd_export_drive(Path(args.repo).resolve(), Path(args.to) if args.to else None, args.account)
     if args.cmd == "status":
