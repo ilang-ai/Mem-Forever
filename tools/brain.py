@@ -37,7 +37,7 @@ brain.py v1.1  可移植 Agent 大脑（brain 仓库）的单文件工具。
                            都列进 unresolved，不猜
         MANIFEST.json      每个文件的大小与 sha256，打包时间与来源目录
       tar 只在内存里，不落明文中间文件；值不打印，只打印种类与指纹。
-      密钥目录缺省 ~/.keys，不存在则仓库上一级的 _keys（第 8 节第 2 件移出前后都能用）。
+      密钥目录缺省 ~/.keys；没有这个目录就退到仓库上一级的 _keys；--keys-dir 可指定别处。
 
   vault unpack [--in 文件] [--to 目录] [--identity ~/.age/key.txt] [--overwrite]
       age 私钥解密后解 tar。给 --to 时全部解到该目录（往返验证用）；缺省解回原位：
