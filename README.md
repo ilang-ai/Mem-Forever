@@ -21,6 +21,11 @@ pretty_name: Mem-Forever
 
 # Mem-Forever
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+  <img src="docs/assets/banner-light.svg" alt="Mem-Forever: memory that outlives the session. A ruler of sessions with the current one marked in gold." width="1200">
+</picture>
+
 > **永久记忆 · 跨会话 · 跨模型**
 > A persistent memory layer for AI agents, built on the iLang protocol. One private Git repo is the agent's brain: a profile, one file per memory, a hand-off note that says where you stopped, and an encrypted vault for your keys. **2.1: this README is the engineering book. Copy it into any AI agent and the agent can carry it out.**
 >
@@ -31,6 +36,8 @@ pretty_name: Mem-Forever
 [![iLang L0](https://img.shields.io/badge/iLang-L0_Compatible-d4a858?style=flat-square)](https://github.com/ilang-ai/ilang-spec)
 [![Tools](https://img.shields.io/badge/works_with-Claude_·_Cursor_·_Codex_·_Copilot_·_Gemini-d4a858?style=flat-square)]()
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22865160.svg)](https://doi.org/10.5281/zenodo.22865160)
+
+Landing page: <https://ilang-ai.github.io/Mem-Forever/>
 
 [中文](docs/README.zh.md) | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [Español](docs/README.es.md) | [Français](docs/README.fr.md) | [Deutsch](docs/README.de.md) | [Português](docs/README.pt.md) | [Русский](docs/README.ru.md)
 
