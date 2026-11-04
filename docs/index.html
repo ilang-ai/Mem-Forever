@@ -61,6 +61,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.5}
 .top{display:flex;align-items:center;justify-content:space-between;gap:24px;height:60px}
 .brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-weight:600;letter-spacing:-.01em}
 .brand svg{width:26px;height:26px;display:block}
+.brand:hover{color:var(--ink-2)}
+.nb{white-space:nowrap}
 .top nav{display:flex;gap:22px;font-size:15px}
 .top nav a{text-decoration:none;color:var(--ink-2)}
 .top nav a:hover{color:var(--ink)}
@@ -160,8 +162,8 @@ footer a{color:var(--ink-2)}
 
 <main id="main">
   <section class="hero wrap">
-    <h1>Mem-Forever<span class="signal">memory that outlives the session.</span></h1>
-    <p class="lede">Every AI tool forgets you when the window closes. Mem-Forever keeps the memory in your own private Git repository: a profile, one file per memory, a hand-off note that says where you stopped, and an encrypted vault for your keys. Any tool that reads files can use it, and a chat with no tools gets&nbsp;it&nbsp;pasted.</p>
+    <h1>Mem-Forever <span class="signal">memory that outlives the session.</span></h1>
+    <p class="lede">Every AI tool forgets you when the window closes. Mem-Forever keeps the memory in your own private Git repository: a profile, one file per memory, a hand-off note that says where you stopped, and an encrypted vault for your keys. Any tool that reads files can use it, and a chat with no tools gets&nbsp;it&nbsp;pasted in&nbsp;one&nbsp;message.</p>
     <p class="actions">
       <a class="pill solid" href="https://github.com/new?template_name=Mem-Forever&amp;template_owner=ilang-ai">Use this template</a>
       <a class="pill" href="https://github.com/ilang-ai/Mem-Forever#readme">Read the engineering book</a>
@@ -195,7 +197,7 @@ footer a{color:var(--ink-2)}
       <li>
         <h3>A chat with a connector or a clone</h3>
         <div>
-          <p>It reads <code>BRAIN.md</code> first, eight points, about 400 tokens on most tokenizers and 588 on Claude's, then the files it names, and writes back through git when it can.</p>
+          <p>It reads <code>BRAIN.md</code> first, eight points, about 400 tokens on most tokenizers and 588 on Claude's, then the files it names, and writes back&nbsp;through&nbsp;git&nbsp;when&nbsp;it&nbsp;can.</p>
           <p class="tools">ChatGPT, Claude.ai, Gemini web, through&nbsp;GitHub&nbsp;or&nbsp;Drive</p>
         </div>
       </li>
@@ -226,14 +228,14 @@ footer a{color:var(--ink-2)}
 
   <section id="review" class="wrap">
     <h2>Review before merge</h2>
-    <p class="intro">A hand-off that comes back from another model is a candidate, not the truth. The tool compares it block by block with the accepted one and never writes: a deleted boundary, a forbidden or unevidenced item in done, a missing key, a changed identifier or a silent drop is rejected; the rest is listed for&nbsp;you&nbsp;to&nbsp;decide.</p>
+    <p class="intro">A hand-off that comes back from another model is a candidate, not the truth. The tool compares it block by block with the accepted one and never writes: a deleted boundary, a forbidden or unevidenced item in done, a missing key, a changed identifier or a silent drop is rejected; the rest is&nbsp;listed&nbsp;for&nbsp;you&nbsp;to&nbsp;decide.</p>
     <div class="out"><pre><span class="rj">REJECT</span>  boundary deleted or rewritten: ::BOUNDARY{never:force-push main|scope:project}
 <span class="rj">REJECT</span>  DECIDE line 9: key why empty (write none)
 <span class="rj">REJECT</span>  next item dropped without a word: write the release note
 FLAG    decision 'ship from main, no release branch': why changed
 TRANSITION next/unverified -&gt; done, needs evidence: tag and release
 review: REJECTED (3); baseline stays; nothing written</pre></div>
-    <p class="cap">Output of <code>brain.py handoff review</code> on an example hand-off, 2026-11-05: the candidate dropped the boundary, emptied a reason and dropped a next&nbsp;item.</p>
+    <p class="cap">Output of <code>brain.py handoff review</code> on an example hand-off, <span class="nb">2026-11-05</span>: the candidate dropped the boundary, emptied a reason and&nbsp;dropped&nbsp;a&nbsp;next&nbsp;item.</p>
   </section>
 
   <section id="measured" class="wrap">

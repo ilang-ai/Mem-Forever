@@ -24,7 +24,7 @@ tokens:
     table: { size: "16px", weight: 400, line: 1.45 }
     label: { size: "14px", weight: 400 }
     control: { size: "15px", weight: 600 }
-    code: { size: "0.92em", line: 1.5 }
+    code: { inline: "0.92em", note: "0.95rem", output: "0.9rem", line: 1.5 }
   rounded:
     pill: "999px"
     block: "14px"
@@ -56,7 +56,7 @@ Primary is the reading ink on each scheme. Secondary carries running text under 
 
 ## Typography
 
-One sans family through the system stack the brand uses, one mono stack for notation. Roles: display (h1), headline (h2), title (h3 and the judge heading), lede, body, table, label (captions, ruler labels, nav at small widths, footer), control (pills, nav), code. Headings are weight 600, everything else 400. Headings balance, paragraphs wrap pretty. Numbers in the ruler and the table are tabular.
+One sans family through the system stack the brand uses, one mono stack for notation. Roles: display (h1), headline (h2), title (h3 and the judge heading), lede, body, table, label (captions, ruler labels, nav at small widths, footer), control (pills, nav), code in three sizes (inline 0.92em, the note 0.95rem, the output block 0.9rem). Headings are weight 600, everything else 400. Headings balance, paragraphs wrap pretty. Numbers in the ruler and the table are tabular.
 
 ## Rounded
 
