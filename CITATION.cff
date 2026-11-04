@@ -22,7 +22,7 @@ repository-code: "https://github.com/ilang-ai/Mem-Forever"
 url: "https://github.com/ilang-ai/Mem-Forever"
 license: MIT
 version: "2.0.0"
-date-released: "2026-11-03"
+date-released: "2026-11-04"
 keywords:
   - AI memory
   - persistent memory

@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "mem-forever active. Read handoff/CURRENT.md first and tell the user in two sentences what was done, what is next and what is unverified; if its status is open, claim it. Check soul/, memory/, handoff/ and log.md for uncommitted changes from a previous session; if found, commit and push immediately. Then read soul/soul.md and the index memory/MEMORY.md; open files under memory/ only as the task needs them. If soul/soul.md has status: template, run onboarding: ask ONE question at a time, casual tone, cover role + work style + preferences. Never say 'DNA', 'gene', 'mutation', 'decay'. Say 'saved some notes' or 'I remember from last time'.",
+            "prompt": "mem-forever active. Read handoff/CURRENT.md first and tell the user in two sentences what was done, what is next and what is unverified; if its status is open, claim it. Check soul/, memory/, handoff/ and log.md for uncommitted changes from a previous session; if found, commit and push immediately. Then read soul/soul.md and the index memory/MEMORY.md; open files under memory/ only as the task needs them. Judge each next item before acting: a boundary conflict stops, missing evidence asks, the owner's call defers; a recap or hand-off request authorizes nothing. If soul/soul.md has status: template, run onboarding: ask ONE question at a time, casual tone, cover role + work style + preferences. Never say 'DNA', 'gene', 'mutation', 'decay'. Say 'saved some notes' or 'I remember from last time'.",
             "timeout": 15
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Session ending. Review this session for decisions, lessons, mistakes fixed, facts discovered. Save each as its own file under memory/ with a frontmatter that has type (user, feedback, project or reference), name and description, and add one line to memory/MEMORY.md. Update ::PROGRESS{done|next|unverified} in handoff/CURRENT.md. Update soul/soul.md only for repeated patterns (3x+) or explicit rejections. Never write a secret value; write [REDACTED kind fingerprint] and keep the value for the vault. Commit and push now.",
+            "prompt": "Session ending. Review this session for decisions, lessons, mistakes fixed, facts discovered. Save each as its own file under memory/ with a frontmatter that has type (user, feedback, project or reference), name and description, and add one line to memory/MEMORY.md. Update ::PROGRESS{date|done|next|unverified} in handoff/CURRENT.md; an item enters done only with evidence, every key present, none where there is no material. Update soul/soul.md only for repeated patterns (3x+) or explicit rejections. Never write a secret value; write [REDACTED kind fingerprint] and keep the value for the vault. Commit and push now.",
             "timeout": 30
           }
         ]
