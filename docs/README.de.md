@@ -4,11 +4,11 @@
 > Persistente Speicherschicht für KI-Agenten, gebaut auf dem iLang-Protokoll.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
-> ⚠️ Diese Übersetzung beschreibt noch Mem-Forever 1.0. Die Änderungen der 2.0 (neues Layout, Hand-off, Vault, `brain.py`) sind noch nicht übersetzt; siehe [README.md](../README.md) (Englisch) oder [README.zh.md](README.zh.md) (Chinesisch).
+> Diese Seite deckt nur den ersten Bildschirm ab. Das Engineering-Buch – wie man installiert, was der Agent tut, was gemessen wurde – ist [README.md](../README.md) (Englisch) und [README.zh.md](README.zh.md) (Chinesisch). Kopiere eine der beiden in einen beliebigen KI-Agenten, und er kann sie umsetzen.
 
 ---
 
@@ -21,7 +21,7 @@ Wo Kontextfenster vergessen, **besteht Mem-Forever**.
 | | |
 |---|---|
 | **Persistent** | Ein Speicher, der jede Sitzung und jeden Modellwechsel überlebt. |
-| **Portabel** | Klartext in `.ilang/`. `git diff`-verfolgbar. Kein Vendor-Lock-in. |
+| **Portabel** | Reines Markdown in `soul/`, `memory/`, `handoff/`. Mit `git diff` nachvollziehbar, kein Vendor-Lock-in. |
 | **Automatisch** | KI erstellt dein Profil aus dem Gespräch. Keine Formulare. |
 | **Privat** | Dein Repository, deine Daten. Kein Server, kein Konto, keine Telemetrie. |
 

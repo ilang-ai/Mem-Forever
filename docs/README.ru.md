@@ -4,11 +4,11 @@
 > Постоянный слой памяти для ИИ-агентов, построенный на протоколе iLang.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md)
 
-> ⚠️ Этот перевод всё ещё описывает Mem-Forever 1.0. Изменения версии 2.0 (новая структура, hand-off, vault, `brain.py`) пока не переведены; см. [README.md](../README.md) (английский) или [README.zh.md](README.zh.md) (китайский).
+> Эта страница охватывает только первый экран. Инженерная книга — как установить, что делает агент, что было измерено — это [README.md](../README.md) (английский) и [README.zh.md](README.zh.md) (китайский). Скопируй любой из них в любого ИИ-агента, и он сможет это выполнить.
 
 ---
 
@@ -21,7 +21,7 @@
 | | |
 |---|---|
 | **Постоянный** | Одна память, переживающая каждую сессию и смену модели. |
-| **Портативный** | Текстовые файлы в `.ilang/`. Отслеживаемые через `git diff`. Без привязки к поставщику. |
+| **Портативный** | Обычный Markdown в `soul/`, `memory/`, `handoff/`. Отслеживается через `git diff`, без привязки к поставщику. |
 | **Автоматический** | ИИ строит профиль из разговора. Никаких форм. |
 | **Приватный** | Твой репозиторий, твои данные. Без сервера, без аккаунта, без телеметрии. |
 

@@ -4,11 +4,11 @@
 > iLang プロトコルで構築された AI 永続記憶層。
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
-> ⚠️ この翻訳はまだ Mem-Forever 1.0 の内容です。2.0 の変更点（新しいレイアウト、ハンドオフ、vault、`brain.py`）は未翻訳です。[README.md](../README.md)（英語）または [README.zh.md](README.zh.md)（中国語）を参照してください。
+> このページは最初の画面のみを扱います。インストール方法、エージェントの動作、計測結果をまとめたエンジニアリングブックは [README.md](../README.md)（英語）と [README.zh.md](README.zh.md)（中国語）です。どちらかを任意の AI エージェントにコピーすれば、実行できます。
 
 ---
 
@@ -25,7 +25,7 @@
 | | |
 |---|---|
 | **永続** | 一つの記憶が、すべてのセッションとモデル切り替えを超えて存続。 |
-| **ポータブル** | `.ilang/` のプレーンテキスト。`git diff` で追跡可能。ベンダーロックインなし。 |
+| **ポータブル** | `soul/`、`memory/`、`handoff/` のプレーン Markdown。`git diff` で追跡可能。ベンダーロックインなし。 |
 | **自動** | AIが会話からプロファイルを自動構築。フォーム記入は不要。 |
 | **プライベート** | あなたのリポジトリ、あなたのデータ。サーバーなし、アカウントなし。 |
 

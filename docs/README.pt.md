@@ -4,11 +4,11 @@
 > Camada de memória persistente para agentes de IA, construída sobre o protocolo iLang.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md)
 
-> ⚠️ Esta tradução ainda descreve o Mem-Forever 1.0. As mudanças da 2.0 (nova estrutura, hand-off, vault, `brain.py`) ainda não foram traduzidas; veja [README.md](../README.md) (inglês) ou [README.zh.md](README.zh.md) (chinês).
+> Esta página cobre apenas a primeira tela. O livro de engenharia — como instalar, o que o agente faz, o que foi medido — é [README.md](../README.md) (inglês) e [README.zh.md](README.zh.md) (chinês). Copie qualquer um deles para qualquer agente de IA e ele poderá executá-lo.
 
 ---
 
@@ -21,7 +21,7 @@ Onde janelas de contexto esquecem, **Mem-Forever persiste**.
 | | |
 |---|---|
 | **Persistente** | Uma memória que sobrevive a cada sessão e cada troca de modelo. |
-| **Portátil** | Texto simples em `.ilang/`. Rastreável com `git diff`. Sem lock-in de fornecedor. |
+| **Portátil** | Markdown simples em `soul/`, `memory/`, `handoff/`. Rastreável com `git diff`, sem lock-in de fornecedor. |
 | **Automático** | A IA constrói seu perfil a partir da conversa. Sem formulários. |
 | **Privado** | Seu repositório, seus dados. Sem servidor, sem conta, sem telemetria. |
 
