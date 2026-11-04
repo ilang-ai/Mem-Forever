@@ -71,7 +71,7 @@ Everything from §4 on is the protocol and the evidence. The normative text for 
 
 ## 1. No tools: the pasted message
 
-A brain reaches a chat AI that has no tools as one pasted message: the notation card below, a `---` line, then the declaration blocks of the hand-off. `python -X utf8 tools/brain.py paste` builds that message from a brain; [docs/PASTE.md](docs/PASTE.md) has the five questions that show whether the model read the notation or guessed. The card, verbatim ([rules/GRAMMAR-CARD.md](rules/GRAMMAR-CARD.md)):
+A brain reaches a chat AI that has no tools as one pasted message: the notation card below, a `---` line, then the declaration blocks of the hand-off. `python -X utf8 tools/brain.py paste` builds that message from a brain, in the owner's language: this English card ships as [rules/GRAMMAR-CARD.md](rules/GRAMMAR-CARD.md), the Chinese one as `rules/GRAMMAR-CARD.zh.md`, and `--lang auto` picks by the hand-off. [docs/PASTE.md](docs/PASTE.md) has the one check to run before real work. The card, verbatim:
 
 ```
 # iLang notation quick card (for reading a brain)
@@ -174,7 +174,7 @@ soul/agent.md         ← the agent's own soul: a persona you gave it, and what 
 memory/MEMORY.md      ← index, one line per memory
 memory/*.md           ← one memory per file, with a `type` frontmatter
 vault/keys-*.age      ← your keys, encrypted to your own public key
-rules/GRAMMAR-CARD.md ← the notation card of §1
+rules/GRAMMAR-CARD.md ← the notation card of §1 (English; GRAMMAR-CARD.zh.md in Chinese)
 docs/PASTE.md         ← the third way in: a chat AI with no tools
 tools/brain.py        ← optional: check, migrate, vault, install, init, handoff review, paste
 ```
@@ -249,10 +249,10 @@ A brain, or a change to this template, is in order when all of these hold:
 
 Numbers are from real tokenizers and real conversations, not estimates; dates are when they were taken.
 
-- **The card** ([rules/GRAMMAR-CARD.md](rules/GRAMMAR-CARD.md), English, 1351 bytes): 381 to 410 tokens on ten models' tokenizers (MiniMax, Grok 4.20 and 4.7, GLM, Kimi, DeepSeek, Qwen, Gemini, GPT, Doubao), 539 on Claude's. Measured 2026-11-04; not yet question-tested.
-- **The Chinese card** (1212 bytes, in [docs/README.zh.md](docs/README.zh.md)): 352 to 392 tokens on the same ten, 542 on Claude's. Tested with the five check questions on twelve model tiers from weak to strong, 2026-11-03 and 2026-11-04. Three card rules came out of those runs: the fence sentence leads the write-back rule because weak tiers dropped the fence when it came later; `when:` is described as a condition and not a release clause because boundaries were argued around otherwise; the owner entity carries `alias:the I in this chat` because decisions were attributed to invented entities otherwise.
+- **The card** ([rules/GRAMMAR-CARD.md](rules/GRAMMAR-CARD.md), English, 1351 bytes): 381 to 410 tokens on ten models' tokenizers (MiniMax, Grok 4.20 and 4.7, GLM, Kimi, DeepSeek, Qwen, Gemini, GPT, Doubao), 539 on Claude's. Measured 2026-11-04; not yet tested in conversation.
+- **The Chinese card** (`rules/GRAMMAR-CARD.zh.md`, 1212 bytes): 352 to 392 tokens on the same ten, 542 on Claude's. Tested in conversation on twelve model tiers from weak to strong, 2026-11-03 and 2026-11-04.
 - **`BRAIN.md`** (the eight points, English): 1552 bytes; 399 to 406 tokens on GPT, GLM and Kimi, 427 on Doubao, 588 on Claude's, net of each chat template, measured 2026-11-05 after the 2.1 edit of point 2.
-- **One web endpoint, 2026-11-05**, ChatGPT's web chat signed out, free tier, no files, no tools: the Chinese card plus a 14-block hand-off went in as one message and came back as "done reading"; question 1 restated 4, 6 and 9 items verbatim, checked by script against the file. The first write-back rewrote the item it moved and the review rejected it (two rejects); told the identifier rule, the second write-back passed (one flag, one transition, one addition) and was accepted.
+- **One web endpoint, 2026-11-05**, ChatGPT's web chat signed out, free tier, no files, no tools: the Chinese card plus a 14-block hand-off went in as one message and came back as "done reading"; the restating check gave 4, 6 and 9 items verbatim, confirmed by script against the file. The first write-back rewrote the item it moved and the review rejected it (two rejects); told the identifier rule, the second write-back passed (one flag, one transition, one addition) and was accepted.
 - **`handoff review` self-test**, 2026-11-05: `init` into an empty directory, then `check`: 0 errors, and the seven generated files are validator-clean. An identical candidate: clean, exit 0. A single `::PROGRESS{}` block without `--overlay`: 13 rejects (every other baseline block reported missing), exit 1. The same block with `--overlay`: 0 rejects, 1 flag, 1 transition, 1 addition, exit 3, and the composed file equals the hand-made overlay from the web-endpoint run. A boundary given a `when:` under `--overlay`: rejected. One new `::LESSON{}` with its body line under `--overlay`: appended intact before the notes section, exit 0. A `::GENE{}` replaced under `--overlay` keeps its `T:`/`A:` lines, their indentation and the baseline's line endings.
 
 ---
@@ -265,6 +265,7 @@ Numbers are from real tokenizers and real conversations, not estimates; dates ar
 - **Partial write-back.** `handoff review --overlay` lays the blocks a web chat sent back over the baseline and reviews the whole; `--out` writes it. Accepting no longer copies the previous version into `handoff/archive/`; git history is the previous version, and `archive/` holds closed hand-offs only.
 - **Items are identifiers.** The skill, `BRAIN.md`'s companion text and [docs/PASTE.md](docs/PASTE.md) say it before a write-back is requested: an item moves whole, news goes in a new item. The card itself is unchanged and still measured as published.
 - **`soul/agent.md`.** The agent's own soul file, created by `brain.py init`, read at session start, written by the agent at milestones.
+- **The card in the owner's language.** English and Chinese ship; `brain.py paste` picks by the hand-off's language, `init` writes both.
 - **brain.py 1.5**, standard library only.
 
 ### What's new in 2.0
@@ -285,7 +286,7 @@ Open your repo with any tool; the skill migrates once: `.ilang/soul.md` content 
 
 - A reworded item is still a drop plus an addition to the review; an "item supersedes item" relation, or prefix matching, would let "the same item plus evidence" be recognized. Until then the identifier rule above is the workaround.
 - The identifier rule is not on the card. Putting it there means re-measuring and re-testing the card on the ten tokenizers and twelve tiers.
-- The English card is measured but not question-tested; the Chinese card it mirrors is.
+- The English card is measured but not yet tested in conversation; the Chinese card it mirrors is.
 - `data/ilang-memory-protocol.jsonl` still carries 1.0-era samples.
 
 ---

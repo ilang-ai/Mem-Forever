@@ -22,7 +22,7 @@ jobs:
       - name: Sync engine files only
         run: |
           # Only sync engine files; never touch user data in soul/ memory/ handoff/ vault/ env/ (or the deprecated .ilang/)
-          git checkout upstream/main -- CLAUDE.md .cursorrules AGENTS.md GEMINI.md .github/copilot-instructions.md LICENSE skills/mem-forever/SKILL.md tools/brain.py rules/GRAMMAR-CARD.md docs/OKF.md docs/VAULT.md 2>/dev/null || true
+          git checkout upstream/main -- CLAUDE.md .cursorrules AGENTS.md GEMINI.md .github/copilot-instructions.md LICENSE skills/mem-forever/SKILL.md tools/brain.py rules/GRAMMAR-CARD.md rules/GRAMMAR-CARD.zh.md docs/OKF.md docs/VAULT.md 2>/dev/null || true
           
           # Check if anything changed
           if git diff --staged --quiet; then

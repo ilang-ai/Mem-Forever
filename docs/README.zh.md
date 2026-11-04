@@ -46,7 +46,7 @@
 
 ## 1. 没有工具：粘贴的那一条消息
 
-大脑到达一个没有工具的对话 AI，靠的是一条粘贴的消息：下面这张记法卡、一行 `---`、然后是交接单的声明块。`python -X utf8 tools/brain.py paste` 从一个大脑拼出这条消息；[docs/PASTE.md](PASTE.md) 有五个检查问题，能看出模型是读懂了记法还是在猜。中文卡原文（英文卡在 [rules/GRAMMAR-CARD.md](../rules/GRAMMAR-CARD.md)）：
+大脑到达一个没有工具的对话 AI，靠的是一条粘贴的消息：下面这张记法卡、一行 `---`、然后是交接单的声明块。`python -X utf8 tools/brain.py paste` 从一个大脑拼出这条消息，卡跟着主人的语言走：中文卡随仓库发在 `rules/GRAMMAR-CARD.zh.md`，英文卡在 [rules/GRAMMAR-CARD.md](../rules/GRAMMAR-CARD.md)，`--lang auto` 按交接单的语言挑。[docs/PASTE.md](PASTE.md) 有开工前先做的那一项检查。中文卡原文：
 
 ```
 # iLang 记法速查（读大脑用）
@@ -149,7 +149,7 @@ soul/agent.md         ← Agent 自己的灵魂：你给它的人格，以及它
 memory/MEMORY.md      ← 索引，一行一条记忆
 memory/*.md           ← 一文件一记忆，带 `type` frontmatter
 vault/keys-*.age      ← 你的钥匙，用你自己的公钥加密
-rules/GRAMMAR-CARD.md ← §1 那张记法卡
+rules/GRAMMAR-CARD.md ← §1 那张记法卡（英文；GRAMMAR-CARD.zh.md 是中文）
 docs/PASTE.md         ← 第三条路：没有工具的对话 AI
 tools/brain.py        ← 可选：check、migrate、vault、install、init、handoff review、paste
 ```
@@ -224,10 +224,10 @@ A:无信号的冗长⇒浪费
 
 数字来自真实分词器和真实对话，不是估算；日期是测量当天。
 
-- **英文卡**（[rules/GRAMMAR-CARD.md](../rules/GRAMMAR-CARD.md)，1351 字节）：十家模型分词器 381 到 410 token（MiniMax、Grok 4.20 与 4.7、GLM、Kimi、DeepSeek、Qwen、Gemini、GPT、Doubao），Claude 539。2026-11-04 测；还没做五问测试。
-- **中文卡**（§1 那张，1212 字节）：同十家 352 到 392 token，Claude 542。2026-11-03、11-04 在十二档模型上做了五问测试，从弱到强。卡上三条规则来自这些实测：回写规则把围栏那句放最前，因为弱档放后面就丢围栏；`when:` 写成「条件」而不是「解除指引」，因为否则边界会被绕；主人实体带 `alias:对话里的我`，因为否则决定会被归给编出来的实体。
+- **英文卡**（[rules/GRAMMAR-CARD.md](../rules/GRAMMAR-CARD.md)，1351 字节）：十家模型分词器 381 到 410 token（MiniMax、Grok 4.20 与 4.7、GLM、Kimi、DeepSeek、Qwen、Gemini、GPT、Doubao），Claude 539。2026-11-04 测；还没在对话里测过。
+- **中文卡**（`rules/GRAMMAR-CARD.zh.md`，§1 那张，1212 字节）：同十家 352 到 392 token，Claude 542。2026-11-03、11-04 在十二档模型上从弱到强做过对话实测。
 - **`BRAIN.md`**（八条，英文）：1552 字节；GPT、GLM、Kimi 三家 399 到 406 token，Doubao 427，Claude 588，均已扣除各家聊天模板，2.1 改了第 2 条之后于 2026-11-05 实测。
-- **一个网页端，2026-11-05**，ChatGPT 网页未登录、免费层、无文件无工具：中文卡加一份 14 块的交接单一条消息发过去，回「读完了」；第一问把 4、6、9 条逐字复述出来，脚本对过原文。第一次回写把搬动的那条改写了，审核退回（两条拒绝）；告诉它「条目是标识」后，第二次回写通过（一条待拍、一条迁移、一条新增），已接受。
+- **一个网页端，2026-11-05**，ChatGPT 网页未登录、免费层、无文件无工具：中文卡加一份 14 块的交接单一条消息发过去，回「读完了」；复述检查把 4、6、9 条逐字复述出来，脚本对过原文。第一次回写把搬动的那条改写了，审核退回（两条拒绝）；告诉它「条目是标识」后，第二次回写通过（一条待拍、一条迁移、一条新增），已接受。
 - **`handoff review` 自测**，2026-11-05：空目录里 `init` 再 `check`：0 错，生成的七个文件全过校验器。候选与基线相同：干净，退出码 0。只给一个 `::PROGRESS{}` 块、不带 `--overlay`：13 条拒绝（基线其余每个块都报缺失），退出码 1。同一个块带 `--overlay`：0 拒绝、1 待拍、1 迁移、1 新增，退出码 3，拼出的整份与网页端实跑那天手工叠的一模一样。`--overlay` 下边界被挂了 `when:`：拒绝。`--overlay` 下只给一条带正文行的新 `::LESSON{}`：原样追加在说明段之前，退出码 0。`--overlay` 下替换一个 `::GENE{}`：`T:`/`A:` 行、缩进、基线的换行风格都保留。
 
 ---
@@ -240,6 +240,7 @@ A:无信号的冗长⇒浪费
 - **部分回写。** `handoff review --overlay` 把网页聊天交回来的块叠到基线上审整份；`--out` 写出来。接受时不再把上一版复制进 `handoff/archive/`：上一版就是 git 历史，`archive/` 只放已关闭的交接单。
 - **条目就是标识。** skill、`BRAIN.md` 的配套文字和 [docs/PASTE.md](PASTE.md) 都在要回写之前先说这一句：条目整条搬，新消息另起一条。卡本身没动，仍按发布时的实测数。
 - **`soul/agent.md`。** Agent 自己的灵魂文件，`brain.py init` 建，会话开始时读，里程碑时 Agent 自己写。
+- **卡跟着主人的语言走。** 中英两张随仓库发，`brain.py paste` 按交接单的语言挑，`init` 两张都写。
 - **brain.py 1.5**，只用标准库。
 
 ### 2.0 新在哪
@@ -260,7 +261,7 @@ A:无信号的冗长⇒浪费
 
 - 改写过的条目在审核眼里仍是「删一条加一条」；要有「此条替代彼条」的关系或前缀匹配，才能认出「同一条加证据」。在那之前，上面的标识规则是绕法。
 - 标识规则没上卡。上卡就得在十家分词器、十二档模型上重新量、重新测。
-- 英文卡量过没测过五问；它镜像的中文卡测过。
+- 英文卡量过没在对话里测过；它镜像的中文卡测过。
 - `data/ilang-memory-protocol.jsonl` 还是 1.0 时代的样本。
 
 ---

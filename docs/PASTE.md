@@ -8,21 +8,15 @@ Some chat AIs cannot read a repository: no connector, no sandbox, no files. They
 python -X utf8 tools/brain.py paste --out paste.md
 ```
 
-The message is: one opening line, the notation card `rules/GRAMMAR-CARD.md`, a `---` line, then the declaration blocks of `handoff/CURRENT.md` (frontmatter and the claim-and-close notes left out). Nothing else: no runtime, no spec link. Send it as the first message, as one message. The expected reply is just "done reading".
+The message is: one opening line, the notation card, a `---` line, then the declaration blocks of `handoff/CURRENT.md` (frontmatter and the claim-and-close notes left out). Nothing else: no runtime, no spec link. Send it as the first message, as one message. The expected reply is just "done reading".
+
+The card follows the owner's language. `rules/GRAMMAR-CARD.md` is the English card, `rules/GRAMMAR-CARD.zh.md` the Chinese one; `--lang auto` picks by the language of the hand-off, `--lang zh` or `--lang en` overrides, and the opening line follows the card that was picked. Another language is one more file, `rules/GRAMMAR-CARD.<lang>.md`, translated from the English card line by line; it is not measured until you measure it.
 
 The command refuses to build the message when any line looks like a secret; fix the hand-off first.
 
-## Five check questions
+## One check before real work
 
-Ask them before any real work. The answers show whether the model read the notation or guessed.
-
-1. Restate the hand-off's progress in three parts: done, next, unverified. Expected: item by item, verbatim, section numbers kept.
-2. Which `next` item conflicts with a boundary, and which fact is tentative? Expected: it names the boundary, offers no way around it, and names the `conf:tentative` fact.
-3. Record this decision as a block: a decision you make now, with a reason. Expected: one `::DECIDE{@OWNER}{what:…|why:…|context:…}` inside a code fence, all three keys, attributed to the owner's entity (the `alias` line in the hand-off does this).
-4. What time zone do the dates use? Expected: what the hand-off says, or "unknown". An invented zone is a fail.
-5. Record this decision: a decision with no reason given. Expected: `why:none`, nothing invented.
-
-A model that fails question 1 or 3 needs a stronger tier or a shorter hand-off. Do not fix it by adding instructions to the card; the card is measured and tested as it is.
+Ask: "Restate the hand-off's progress in three parts: done, next, unverified. Item by item, verbatim, keep the numbering." A model that paraphrases, merges items or drops the numbering did not read the notation; use a stronger tier or a shorter hand-off. Do not fix it by adding instructions to the card; the card is measured and tested as it is.
 
 ## Taking the answer back
 
@@ -38,8 +32,7 @@ against the current hand-off. `--overlay` lays the returned blocks over the base
 
 ## What was measured
 
-- The Chinese card: 1212 bytes; 352 to 392 tokens on ten models' tokenizers (MiniMax, Grok 4.20 and 4.7, GLM, Kimi, DeepSeek, Qwen, Gemini, GPT, Doubao), 542 on Claude's. Tested with the five questions on twelve model tiers from weak to strong, 2026-11-03 and 2026-11-04.
-- The English card (`brain.py init` writes it): 1351 bytes; 381 to 410 tokens on the same ten, 539 on Claude's. Measured, not yet question-tested.
+- The English card (`rules/GRAMMAR-CARD.md`, 1351 bytes): 381 to 410 tokens on ten models' tokenizers (MiniMax, Grok 4.20 and 4.7, GLM, Kimi, DeepSeek, Qwen, Gemini, GPT, Doubao), 539 on Claude's. Measured 2026-11-04; not yet tested in conversation.
+- The Chinese card (`rules/GRAMMAR-CARD.zh.md`, 1212 bytes): 352 to 392 tokens on the same ten, 542 on Claude's. Tested in conversation on twelve model tiers from weak to strong, 2026-11-03 and 2026-11-04.
 - `BRAIN.md`, the entry for a chat AI with a connector: 1552 bytes; 399 to 406 tokens on GPT, GLM and Kimi, 427 on Doubao, 588 on Claude's, net of each chat template, measured 2026-11-05 after the 2.1 edit of point 2.
-- One web endpoint, 2026-11-05: ChatGPT's web chat, signed out, free tier, no files and no tools. The Chinese card plus a 14-block hand-off went in as one message and came back as "done reading"; question 1 restated 4, 6 and 9 items verbatim, checked by script. The first write-back rewrote the item it moved and the review rejected it; told the identifier rule, the second write-back passed (one flag, one transition, one addition) and was accepted.
-- Three rules on the card came out of those runs. The fence sentence is the first clause of the write-back rule, because weak tiers dropped the fence when it came later. `when:` is described as a condition and not a release clause, because boundaries were argued around otherwise. The owner entity carries `alias:the I in this chat`, because decisions were attributed to invented entities otherwise.
+- One web endpoint, 2026-11-05: ChatGPT's web chat, signed out, free tier, no files and no tools. The Chinese card plus a 14-block hand-off went in as one message and came back as "done reading"; the check above restated 4, 6 and 9 items verbatim, confirmed by script. The first write-back rewrote the item it moved and the review rejected it; told the identifier rule, the second write-back passed (one flag, one transition, one addition) and was accepted.

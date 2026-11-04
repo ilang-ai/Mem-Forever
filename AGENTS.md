@@ -35,7 +35,7 @@ soul/agent.md         ← the agent's own soul: a persona the owner gave it, and
 memory/MEMORY.md      ← index, one line per memory file
 memory/*.md           ← one memory per file, YAML frontmatter with `type`
 log.md                ← changes to layout, rules, tools; `## YYYY-MM-DD`, newest first
-rules/GRAMMAR-CARD.md ← how to read the `::BLOCK{}` notation used in these files
+rules/GRAMMAR-CARD.md ← how to read the `::BLOCK{}` notation (English; GRAMMAR-CARD.zh.md in Chinese; paste picks by the owner's language)
 docs/PASTE.md         ← how a chat AI with no tools reads and writes this brain
 vault/                ← age-encrypted keys; never plain text
 tools/brain.py        ← optional: check, migrate-cc, vault, install, init, status, handoff, paste, export-drive
@@ -47,7 +47,7 @@ tools/brain.py        ← optional: check, migrate-cc, vault, install, init, sta
 
 - A coding agent with the repo on disk (Claude Code, Cursor, Codex, Copilot, Gemini CLI, Hermes) reads this file and works on the files directly.
 - A chat AI that reaches the repo through a connector or a sandbox clone reads `BRAIN.md` first, then the files, and writes back through git when it can.
-- A chat AI with no tools gets one pasted message: the notation card plus the hand-off. `python -X utf8 tools/brain.py paste` builds it; `docs/PASTE.md` has the five check questions. It hands changes back as blocks in a code fence; tell it first that items are identifiers (an item moves whole, new material goes in a new item); a tool that can write git reviews and records them.
+- A chat AI with no tools gets one pasted message: the notation card plus the hand-off. `python -X utf8 tools/brain.py paste` builds it in the owner's language; `docs/PASTE.md` has the one check to run first. It hands changes back as blocks in a code fence; tell it first that items are identifiers (an item moves whole, new material goes in a new item); a tool that can write git reviews and records them.
 
 ## Session Start
 

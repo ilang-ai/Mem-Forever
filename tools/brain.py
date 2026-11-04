@@ -86,7 +86,7 @@ brain.py v1.5  可移植 Agent 大脑（brain 仓库）的单文件工具。
 
   init [目录] [--agent 名] [--no-git]
       建 3.2 节的目录与骨架文件：BRAIN.md、index.md、log.md、soul/ 三个模板、memory/MEMORY.md、
-      handoff/CURRENT.md、rules/GRAMMAR-CARD.md、env/README.md、.gitignore、各目录 .gitkeep，
+      handoff/CURRENT.md、rules/GRAMMAR-CARD.md 与 GRAMMAR-CARD.zh.md、env/README.md、.gitignore、各目录 .gitkeep，
       并把本文件复制进 tools/。已存在的文件一律不覆盖。没有 .git 就 git init（分支 main）。
 
   sync [--direction both|to-cc|from-cc] [--dry-run]
@@ -118,7 +118,9 @@ brain.py v1.5  可移植 Agent 大脑（brain 仓库）的单文件工具。
 
   paste [--out 文件] [--lang auto|zh|en]
       给没有工具的对话 AI 用的那条消息（docs/PASTE.md，适配工程书的粘贴档）：
-      开场一句 + rules/GRAMMAR-CARD.md 全文 + --- + handoff/CURRENT.md 的声明块
+      开场一句 + 速查卡全文 + --- + handoff/CURRENT.md 的声明块；卡按主人的语言挑：
+      --lang auto 看交接单（中文占比 >= 0.2 取 zh），rules/GRAMMAR-CARD.<lang>.md 优先，
+      其次 rules/GRAMMAR-CARD.md；开场句跟实际用的那张卡走
       （去掉 frontmatter 与 "## " 之后的说明）。拼好先过密钥扫描，命中就拒绝。
       --out 写文件，否则打到标准输出；统计行走 stderr，方便 > 重定向。
 """
@@ -1288,6 +1290,21 @@ INIT_GRAMMAR_CARD = """# iLang notation quick card (for reading a brain)
 - Never say DNA, gene or mutation to the user; say "I noted that" or "you told me last time".
 """
 
+INIT_GRAMMAR_CARD_ZH = """# iLang 记法速查（读大脑用）
+
+- `::NAME{k:v|k2:v2}` 一个声明块。NAME 大写。字段用 | 分隔，键值用 : 分隔。
+- `::GENE{名|conf|scope}` 后跟 `T:` 行（特征，「我这样做」）和 `A:x⇒y` 行（反模式，「x 会导致 y，别做」）。
+- `conf:tentative|confirmed` 置信度；`scope:global|project` 作用域；`when:条件` 说明何时生效，不是解除指引。
+- `@NAME` 大写是实体：人、仓库、机器、任务。
+- `::STATE{@X, k:v}` 实体此刻状态。`::FACT{key|value|conf}` 事实。`::PROGRESS{date|done|next|unverified}` 进度。
+  `::DECIDE{@X}{what|why|context}` 决定，X＝决定者。`::LESSON{id|type|scope|conf}` 加下一行正文＝教训。
+  `::BOUNDARY{never|scope}` 硬边界：永远优先，不随条件变化解除，不给绕过方案。
+- 读法：按字面理解键值，不需要字典。不认识的块当带标签的笔记读正文。
+- 复述交接单：逐条原文、保留编号、不改写。
+- 回写块：整块放三反引号围栏里；键一个不能少，没素材的键写 `无`；发出前数一遍键。
+- 不对用户说 DNA、gene、mutation 这些词；说「我记下来了」「上次你说过」。
+"""
+
 INIT_SOUL_MD = """---
 type: profile
 name: soul
@@ -1423,6 +1440,7 @@ def cmd_init(repo: Path, agent: str, no_git: bool) -> int:
     put("memory/MEMORY.md", INIT_MEMORY_INDEX)
     put("handoff/CURRENT.md", render_handoff(repo, "global", "<one-line task>", agent))
     put("rules/GRAMMAR-CARD.md", INIT_GRAMMAR_CARD)
+    put("rules/GRAMMAR-CARD.zh.md", INIT_GRAMMAR_CARD_ZH)
     put("soul/soul.md", INIT_SOUL_MD)
     put("soul/dna.md", INIT_DNA_MD)
     put("soul/agent.md", INIT_AGENT_SOUL)
@@ -1735,23 +1753,49 @@ def _secret_hits_in_text(text: str) -> list[str]:
     return hits
 
 
-def build_paste(repo: Path, lang: str) -> str:
-    card_path = repo / "rules" / "GRAMMAR-CARD.md"
+def _cjk_ratio(s: str) -> float:
+    letters = [ch for ch in s if ch.isalnum() or "\u4e00" <= ch <= "\u9fff"]
+    if not letters:
+        return 0.0
+    return sum(1 for ch in letters if "\u4e00" <= ch <= "\u9fff") / len(letters)
+
+
+def pick_card(repo: Path, lang: str) -> Path:
+    """按语言挑速查卡：rules/GRAMMAR-CARD.<lang>.md 优先；其次 rules/GRAMMAR-CARD.md 且语言相符；
+    再退到 rules/ 下任何一张语言相符的卡；都没有就用 rules/GRAMMAR-CARD.md。"""
+    rules = repo / "rules"
+    want = rules / f"GRAMMAR-CARD.{lang}.md"
+    if want.is_file():
+        return want
+    default = rules / "GRAMMAR-CARD.md"
+    if default.is_file() and (lang == "zh") == _has_cjk(read_text(default).split("\n", 1)[0]):
+        return default
+    for p in sorted(rules.glob("GRAMMAR-CARD*.md")):
+        if (lang == "zh") == _has_cjk(read_text(p).split("\n", 1)[0]):
+            return p
+    if default.is_file():
+        return default
+    raise FileNotFoundError(f"{default} missing")
+
+
+def build_paste(repo: Path, lang: str) -> tuple[str, Path]:
+    """开场句 + 速查卡 + --- + 交接单声明块。lang=auto 按交接单的语言挑卡（中文占比 >= 0.2 取 zh），
+    开场句跟实际用的那张卡走。返回 (消息, 卡的路径)。"""
     cur = _handoff_path(repo)
-    if not card_path.is_file():
-        raise FileNotFoundError(f"{card_path} missing")
     if not cur.is_file():
         raise FileNotFoundError(f"{cur} missing (handoff open first)")
-    card = read_text(card_path).strip("\n")
     blocks = handoff_blocks(read_text(cur))
     if lang == "auto":
-        lang = "zh" if _has_cjk(card.split("\n", 1)[0]) else "en"
-    return f"{PASTE_OPENING[lang]}\n\n{card}\n\n---\n\n{blocks}\n"
+        lang = "zh" if _cjk_ratio(blocks) >= 0.2 else "en"
+    card_path = pick_card(repo, lang)
+    card = read_text(card_path).strip("\n")
+    opening = PASTE_OPENING["zh" if _has_cjk(card.split("\n", 1)[0]) else "en"]
+    return f"{opening}\n\n{card}\n\n---\n\n{blocks}\n", card_path
 
 
 def cmd_paste(repo: Path, out: Path | None, lang: str) -> int:
     try:
-        text = build_paste(repo, lang)
+        text, card_path = build_paste(repo, lang)
     except FileNotFoundError as e:
         print(f"ERROR   {e}", file=sys.stderr)
         return 1
@@ -1765,11 +1809,11 @@ def cmd_paste(repo: Path, out: Path | None, lang: str) -> int:
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(data)
-        print(f"paste   {out}: {len(data)} bytes, 0 secret-like hits; send it as one message (docs/PASTE.md)", file=sys.stderr)
+        print(f"paste   {out}: {len(data)} bytes, card {card_path.name}, 0 secret-like hits; send it as one message (docs/PASTE.md)", file=sys.stderr)
     else:
         sys.stdout.write(text)
         sys.stdout.flush()
-        print(f"paste   {len(data)} bytes, 0 secret-like hits; send it as one message (docs/PASTE.md)", file=sys.stderr)
+        print(f"paste   {len(data)} bytes, card {card_path.name}, 0 secret-like hits; send it as one message (docs/PASTE.md)", file=sys.stderr)
     return 0
 
 
@@ -2198,7 +2242,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("paste", help="拼给没有工具的对话 AI 的那条消息：开场句 + 速查卡 + --- + 交接单声明块（docs/PASTE.md）")
     p.add_argument("--repo", default=str(default_repo))
     p.add_argument("--out", help="写到文件；缺省打到标准输出")
-    p.add_argument("--lang", choices=("auto", "zh", "en"), default="auto", help="开场句语言；auto 按速查卡标题判断")
+    p.add_argument("--lang", choices=("auto", "zh", "en"), default="auto", help="速查卡与开场句的语言；auto 按交接单判断（中文占比 >= 0.2 取 zh）；有 rules/GRAMMAR-CARD.<lang>.md 就用它")
 
     args = ap.parse_args(argv)
     agent_default = os.environ.get("BRAIN_AGENT") or "brain.py"
