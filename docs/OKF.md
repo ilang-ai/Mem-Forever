@@ -82,8 +82,9 @@ agent: claude-code
 status: open
 claimed_by: []
 ---
-::STATE{@TASK, name:ship v1.2, repo:my-app, branch:main}
-::PROGRESS{done:tests green|next:tag and release|unverified:docs build}
+::STATE{@OWNER, kind:person, role:owner, alias:the I in this chat}
+::STATE{@TASK, name:ship v1.2, repo:my-app, branch:main, owner:@OWNER}
+::PROGRESS{date:2026-11-04|done:§1 tests green|next:tag and release|unverified:docs build}
 ```
 
 ## Coming from Claude Code's auto-memory
