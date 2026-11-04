@@ -4,11 +4,11 @@
 > iLang 프로토콜로 구축된 AI 영구 기억 레이어.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
-> ⚠️ 이 번역은 아직 Mem-Forever 1.0 기준입니다. 2.0의 변경 사항(새 레이아웃, 핸드오프, vault, `brain.py`)은 아직 번역되지 않았습니다. [README.md](../README.md)(영어) 또는 [README.zh.md](README.zh.md)(중국어)를 참고하세요.
+> 이 페이지는 첫 화면만 다룹니다. 설치 방법, 에이전트가 하는 일, 측정 결과를 담은 엔지니어링 북은 [README.md](../README.md)(영어)와 [README.zh.md](README.zh.md)(중국어)입니다. 둘 중 하나를 아무 AI 에이전트에 복사하면 그대로 실행할 수 있습니다.
 
 ---
 
@@ -25,7 +25,7 @@
 | | |
 |---|---|
 | **영구** | 하나의 기억이 모든 세션과 모델 전환을 넘어 존속. |
-| **휴대** | `.ilang/`의 일반 텍스트. `git diff` 추적 가능. 벤더 종속 없음. |
+| **휴대** | `soul/`, `memory/`, `handoff/`의 일반 Markdown. `git diff` 추적 가능. 벤더 종속 없음. |
 | **자동** | AI가 대화에서 프로필을 자동 구축. 양식 작성 불필요. |
 | **비공개** | 당신의 저장소, 당신의 데이터. 서버 없음, 계정 없음. |
 

@@ -4,11 +4,11 @@
 > Couche de mémoire persistante pour agents IA, construite sur le protocole iLang.
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
-[![Protocol](https://img.shields.io/badge/protocol-iLang_v4.0-d4a858?style=flat-square)](https://ilang.ai)
+[![Protocol](https://img.shields.io/badge/protocol-iLang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
-> ⚠️ Cette traduction décrit encore Mem-Forever 1.0. Les changements de la 2.0 (nouvelle structure, hand-off, vault, `brain.py`) ne sont pas encore traduits ; voir [README.md](../README.md) (anglais) ou [README.zh.md](README.zh.md) (chinois).
+> Cette page ne couvre que le premier écran. Le livre d'ingénierie — comment installer, ce que fait l'agent, ce qui a été mesuré — est [README.md](../README.md) (anglais) et [README.zh.md](README.zh.md) (chinois). Copiez l'un ou l'autre dans n'importe quel agent d'IA et il pourra l'exécuter.
 
 ---
 
@@ -21,7 +21,7 @@ Là où les fenêtres de contexte oublient, **Mem-Forever persiste**.
 | | |
 |---|---|
 | **Persistant** | Une mémoire qui survit à chaque session et chaque changement de modèle. |
-| **Portable** | Texte brut dans `.ilang/`. Traçable avec `git diff`. Aucun verrouillage fournisseur. |
+| **Portable** | Markdown brut dans `soul/`, `memory/`, `handoff/`. Compatible avec `git diff`, aucun verrouillage fournisseur. |
 | **Automatique** | L'IA construit votre profil à partir de la conversation. Aucun formulaire. |
 | **Privé** | Votre dépôt, vos données. Pas de serveur, pas de compte, pas de télémétrie. |
 
