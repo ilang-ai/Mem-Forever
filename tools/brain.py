@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-brain.py v1.4  可移植 Agent 大脑（brain 仓库）的单文件工具。
+brain.py v1.5  可移植 Agent 大脑（brain 仓库）的单文件工具。
 
 只用 Python 标准库，Python 3.10 以上。Windows 控制台请用：
     python -X utf8 tools/brain.py <命令>
@@ -85,7 +85,7 @@ brain.py v1.4  可移植 Agent 大脑（brain 仓库）的单文件工具。
       退出码 1，备份脚本据此告警；--json 给脚本读。
 
   init [目录] [--agent 名] [--no-git]
-      建 3.2 节的目录与骨架文件：BRAIN.md、index.md、log.md、soul/ 两个模板、memory/MEMORY.md、
+      建 3.2 节的目录与骨架文件：BRAIN.md、index.md、log.md、soul/ 三个模板、memory/MEMORY.md、
       handoff/CURRENT.md、rules/GRAMMAR-CARD.md、env/README.md、.gitignore、各目录 .gitkeep，
       并把本文件复制进 tools/。已存在的文件一律不覆盖。没有 .git 就 git init（分支 main）。
 
@@ -112,6 +112,9 @@ brain.py v1.4  可移植 Agent 大脑（brain 仓库）的单文件工具。
       列 FLAG / TRANSITION 给人拍；候选新增的块列 ADD。候选先过密钥扫描，命中 REJECT。
       给了 --validator 就再跑一遍正典校验器 --lint --strict，非零 REJECT。
       只读不写：有 REJECT 退出码 1，只有 FLAG / TRANSITION 退出码 3，干净 0。
+      --overlay：候选只含它改过的块（例如网页模型贴回的那一个 PROGRESS 块）时，先把候选的块
+      按标识叠到基线上拼成完整候选再审，基线里其余块与 frontmatter 原样带入；--out 把拼好的
+      完整候选写到文件，接受时就拿它替换 CURRENT.md。不给 --overlay 时候选必须是完整交接单。
 
   paste [--out 文件] [--lang auto|zh|en]
       给没有工具的对话 AI 用的那条消息（docs/PASTE.md，适配工程书的粘贴档）：
@@ -132,11 +135,12 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "1.4"
+VERSION = "1.5"
 GENERATED_BY = f"brain.py/{VERSION}"
 OKF_VERSION = "0.2"
 OKF_DIRS = ("soul", "memory", "handoff")
@@ -1258,7 +1262,7 @@ INIT_BRAIN_MD = """# BRAIN.md · read this and take over
 This is the entry point of one person's agent brain. No runtime to load; read in this order.
 
 1. `handoff/CURRENT.md` first: what was done, what comes next, what is unverified. Restate it in two sentences, then start.
-2. Then every file under `soul/`: how the user works and where the lines are. Follow it; do not recite it.
+2. Then every file under `soul/`: how the user works and where the lines are, and the agent's own soul in `soul/agent.md`. Follow it; do not recite it.
 3. Then `memory/MEMORY.md`, one line per memory. Open a file under `memory/` only when the task needs it.
 4. Reading or updating the hand-off is not doing the work. Judge each `next` item before acting: it crosses a boundary, stop; evidence is missing, ask; it is the owner's call, defer. A recap or hand-off request authorizes nothing.
 5. New facts: if you can write this repo, edit the file, commit and push at once, one change per commit. If you cannot, hand the change back as `::PROGRESS{date|done|next|unverified}`, `::DECIDE{}` or `::LESSON{}` blocks in one code fence, every key present, `none` where there is no material; a git-capable tool reviews and records it.
@@ -1307,6 +1311,29 @@ status: template
 
 <!-- Optional. If you use Imprint (github.com/ilang-ai/Imprint), keep its .dna.md content here; `python -X utf8 tools/brain.py install` copies it to ~/.claude/.dna.md. -->
 <!-- Without Imprint, leave this file as it is. -->
+"""
+
+INIT_AGENT_SOUL = """---
+type: profile
+name: agent-soul
+description: The agent's own soul, separate from the owner's. Part one is a persona the owner gave it; part two is what it learned working with this owner.
+status: template
+soul_id: none
+soul_version: none
+soul_sha256: none
+updated: none
+---
+# agent.md · the agent's own soul
+
+`soul/soul.md` answers "who is the owner". This file answers "who is the agent that works for them". It travels with the brain across models, accounts and machines; a new model reads it after the hand-off and before it starts.
+
+## Part one · given soul
+
+<!-- A persona the owner hands the agent, kept whole and verbatim (an iLang SOUL block, for example). Replace the whole block when the owner gives a new version and update soul_id, soul_version and soul_sha256 above. Empty until the owner gives one. -->
+
+## Part two · grown with this owner
+
+<!-- Written by the agent at milestones, in the canon notation: a LESSON block plus one line of prose, or a GENE block with T: and A: lines. First time tentative; confirmed after three. No secrets. The owner can read and edit it at any time. -->
 """
 
 INIT_MEMORY_INDEX = """# Memory Index
@@ -1398,6 +1425,7 @@ def cmd_init(repo: Path, agent: str, no_git: bool) -> int:
     put("rules/GRAMMAR-CARD.md", INIT_GRAMMAR_CARD)
     put("soul/soul.md", INIT_SOUL_MD)
     put("soul/dna.md", INIT_DNA_MD)
+    put("soul/agent.md", INIT_AGENT_SOUL)
     put("env/README.md", INIT_ENV_README)
     put(".gitignore", INIT_GITIGNORE)
     me = Path(__file__).resolve()
@@ -1852,7 +1880,65 @@ def _touches_boundary(item: str, never: str) -> bool:
     return bool(toks_a & toks_b)
 
 
-def cmd_handoff_review(repo: Path, candidate: Path, baseline: Path | None, validator: Path | None) -> int:
+def overlay_candidate(base_text: str, cand_text: str) -> tuple[str, int, int, int]:
+    """把候选里的块按标识叠到基线文本上：同标识的块（含 GENE 的 T:/A: 行、LESSON 的正文行）整段替换，
+    候选独有的块追加在基线最后一个块之后，基线其余内容（frontmatter、说明、未被替换的块）原样保留。
+    返回 (拼好的文本, 替换块数, 新增块数, 原样带入的块数)。换行风格跟基线。"""
+    nl = "\r\n" if "\r\n" in base_text else "\n"
+    base_lines = base_text.replace("\r\n", "\n").split("\n")
+    cand_lines = cand_text.replace("\r\n", "\n").split("\n")
+    base_blocks = parse_blocks("\n".join(base_lines))
+    cand_blocks = parse_blocks("\n".join(cand_lines))
+    cand_by: dict[tuple, dict] = {}
+    for b in cand_blocks:
+        cand_by.setdefault(_block_id(b), b)
+
+    def span(b: dict) -> tuple[int, int]:
+        start = b["line"] - 1
+        return start, start + 1 + len(b["body"])
+
+    used: set[tuple] = set()
+    plan: dict[int, tuple[int, list[str] | None]] = {}
+    for b in base_blocks:
+        s, e = span(b)
+        bid = _block_id(b)
+        c = cand_by.get(bid)
+        if c is None or bid in used:
+            plan[s] = (e, None)
+            continue
+        used.add(bid)
+        cs, ce = span(c)
+        plan[s] = (e, cand_lines[cs:ce])
+    extra: list[str] = []
+    seen: set[tuple] = set()
+    for c in cand_blocks:
+        cid = _block_id(c)
+        if cid in used or cid in seen:
+            continue
+        seen.add(cid)
+        cs, ce = span(c)
+        extra.extend(cand_lines[cs:ce])
+    last_end = max((e for e, _ in plan.values()), default=len(base_lines))
+    out: list[str] = []
+    i = 0
+    while i < len(base_lines):
+        if i in plan:
+            e, new = plan[i]
+            out.extend(new if new is not None else base_lines[i:e])
+            i = e
+            if i == last_end and extra:
+                out.extend(extra)
+                extra = []
+            continue
+        out.append(base_lines[i])
+        i += 1
+    if extra:
+        out.extend(extra)
+    return nl.join(out), len(used), len(seen), len(base_blocks) - len(used)
+
+
+def cmd_handoff_review(repo: Path, candidate: Path, baseline: Path | None, validator: Path | None,
+                       overlay: bool = False, out: Path | None = None) -> int:
     base_path = baseline or _handoff_path(repo)
     if not base_path.is_file():
         print(f"STOP    baseline {base_path} missing; a candidate cannot be its own baseline")
@@ -1865,6 +1951,12 @@ def cmd_handoff_review(repo: Path, candidate: Path, baseline: Path | None, valid
         return 1
     base_text = read_text(base_path)
     cand_text = read_text(candidate)
+    reviewed_path = candidate
+    if overlay:
+        cand_text, n_rep, n_add, n_keep = overlay_candidate(base_text, cand_text)
+        reviewed_path = out if out is not None else Path(tempfile.gettempdir()) / f"brain-review-overlay-{os.getpid()}.md"
+        reviewed_path.write_bytes(cand_text.encode("utf-8"))
+        print(f"overlay  {n_rep} block(s) replaced from the candidate, {n_add} added, {n_keep} carried from the baseline -> {reviewed_path}")
     rejects: list[str] = []
     flags: list[str] = []
     transitions: list[str] = []
@@ -1985,7 +2077,7 @@ def cmd_handoff_review(repo: Path, candidate: Path, baseline: Path | None, valid
             rejects.append(f"validator {validator} not found")
         else:
             try:
-                r = subprocess.run([sys.executable, "-X", "utf8", str(validator), "--lint", str(candidate), "--strict"],
+                r = subprocess.run([sys.executable, "-X", "utf8", str(validator), "--lint", str(reviewed_path), "--strict"],
                                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
                 tail = (r.stdout + r.stderr).strip().splitlines()[-3:]
                 if r.returncode != 0:
@@ -1996,7 +2088,7 @@ def cmd_handoff_review(repo: Path, candidate: Path, baseline: Path | None, valid
                 rejects.append(f"canon validator could not run: {e}")
 
     print(f"review  baseline  {base_path}")
-    print(f"        candidate {candidate}: {len(cand)} blocks vs {len(base)} in baseline")
+    print(f"        candidate {reviewed_path}: {len(cand)} blocks vs {len(base)} in baseline")
     for s in rejects:
         print(f"REJECT  {s}")
     for s in flags:
@@ -2011,7 +2103,7 @@ def cmd_handoff_review(repo: Path, candidate: Path, baseline: Path | None, valid
     if flags or transitions:
         print(f"review: {len(flags)} to decide, {len(transitions)} transitions need evidence; baseline stays until the owner accepts; nothing written")
         return 3
-    print(f"review: clean, {len(adds)} additions; accept by archiving the baseline and saving the candidate as CURRENT.md (nothing written)")
+    print(f"review: clean, {len(adds)} additions; accept by saving the candidate as CURRENT.md and committing handoff: accept from <who> (nothing written)")
     return 0
 
 
@@ -2100,6 +2192,8 @@ def main(argv=None) -> int:
     h.add_argument("--no-commit", action="store_true", help="只改文件不提交")
     h.add_argument("--baseline", help="review：基线文件；默认 handoff/CURRENT.md")
     h.add_argument("--validator", help="review：正典校验器 ilang_grammar_validator.py 的路径，给了就跑 --lint --strict")
+    h.add_argument("--overlay", action="store_true", help="review：候选只含改过的块时，先按标识叠到基线上拼成完整候选再审")
+    h.add_argument("--out", help="review --overlay：把拼好的完整候选写到这个文件（接受时替换 CURRENT.md 用）")
 
     p = sub.add_parser("paste", help="拼给没有工具的对话 AI 的那条消息：开场句 + 速查卡 + --- + 交接单声明块（docs/PASTE.md）")
     p.add_argument("--repo", default=str(default_repo))
@@ -2124,7 +2218,8 @@ def main(argv=None) -> int:
                 return 2
             return cmd_handoff_review(Path(args.repo).resolve(), Path(args.candidate).resolve(),
                                       Path(args.baseline).resolve() if args.baseline else None,
-                                      Path(args.validator).resolve() if args.validator else None)
+                                      Path(args.validator).resolve() if args.validator else None,
+                                      args.overlay, Path(args.out).resolve() if args.out else None)
         return cmd_handoff(Path(args.repo).resolve(), args.action, args.agent or agent_default,
                            args.project, args.task, args.slug, args.no_commit)
     if args.cmd == "paste":
