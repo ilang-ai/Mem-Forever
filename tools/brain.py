@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-brain.py v1.1  可移植 Agent 大脑（brain 仓库）的单文件工具。
+brain.py v1.4  可移植 Agent 大脑（brain 仓库）的单文件工具。
 
 只用 Python 标准库，Python 3.10 以上。Windows 控制台请用：
     python -X utf8 tools/brain.py <命令>
@@ -99,7 +99,25 @@ brain.py v1.1  可移植 Agent 大脑（brain 仓库）的单文件工具。
       claim：把 agent 追加进 claimed_by、status 改 claimed，提交 "handoff: claim by <agent>"。
       close：status 改 closed，整文件移到 handoff/archive/YYYY-MM-DD-<slug>.md，新开一份空的
       CURRENT.md，两步一次提交。show：打印 status / opened / claimed_by 与 PROGRESS 的
-      done / next / unverified 三段，不改任何东西。
+      date / done / next / unverified 四段，不改任何东西。
+
+  handoff review <候选文件> [--baseline handoff/CURRENT.md] [--validator 校验器路径]
+      别的模型或别的会话交回来的交接单先当候选，与基线逐块比对后才准替换（2.0 的 REVIEW）：
+      基线里的每条 BOUNDARY 必须原样在候选里，少了、改了、挂了 when: 都 REJECT；
+      候选每个块的必填键齐全且值非空（none / 无 算有值），缺键空值 REJECT；
+      PROGRESS 的 done / next / unverified 按 ；; 拆项：基线 done 少了、next 或 unverified
+      的项没交代就不见了、新进 done 的项撞上某条 BOUNDARY 的 never 文本，都 REJECT；
+      基线里的 FACT key、LESSON id、STATE 实体、GENE 名、DECIDE 块、未知块必须还在，
+      不在 REJECT；FACT 值改了、conf 升降了、LESSON 正文改了、next 项进了 done（要证据）
+      列 FLAG / TRANSITION 给人拍；候选新增的块列 ADD。候选先过密钥扫描，命中 REJECT。
+      给了 --validator 就再跑一遍正典校验器 --lint --strict，非零 REJECT。
+      只读不写：有 REJECT 退出码 1，只有 FLAG / TRANSITION 退出码 3，干净 0。
+
+  paste [--out 文件] [--lang auto|zh|en]
+      给没有工具的对话 AI 用的那条消息（docs/PASTE.md，适配工程书的粘贴档）：
+      开场一句 + rules/GRAMMAR-CARD.md 全文 + --- + handoff/CURRENT.md 的声明块
+      （去掉 frontmatter 与 "## " 之后的说明）。拼好先过密钥扫描，命中就拒绝。
+      --out 写文件，否则打到标准输出；统计行走 stderr，方便 > 重定向。
 """
 from __future__ import annotations
 
@@ -118,7 +136,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "1.1"
+VERSION = "1.4"
 GENERATED_BY = f"brain.py/{VERSION}"
 OKF_VERSION = "0.2"
 OKF_DIRS = ("soul", "memory", "handoff")
@@ -1235,39 +1253,35 @@ INIT_DIRS = ("soul", "memory", "handoff/archive", "rules", "skills", "env/schedu
              "vault", "projects", "mirror", "tools")
 INIT_KEEP = ("handoff/archive", "skills", "env/scheduled-tasks", "vault", "projects", "mirror")
 
-INIT_BRAIN_MD = """# BRAIN.md · 读我即接手
+INIT_BRAIN_MD = """# BRAIN.md · read this and take over
 
-这里是一个人的大脑仓库入口。不需要加载任何运行时，按下面顺序读就够。
+This is the entry point of one person's agent brain. No runtime to load; read in this order.
 
-1. 先读 `handoff/CURRENT.md`：做到哪、下一步、哪些没验证。用两句话复述给用户，再开工。
-2. 再读 `soul/` 下全部文件：工作方式与边界。照着做，不用复述。
-3. 再读 `memory/MEMORY.md`：一行一条记忆的索引。需要哪条再开 `memory/` 里对应文件，不要全读。
-4. 有新事实要记：能写仓库就改对应文件并立刻 commit 加 push，一事一提交；不能写就把变更按 `::PROGRESS{done:…|next:…|unverified:…}` 贴回给用户，由能写的端落库。
-5. 里程碑一到就更新 `handoff/CURRENT.md`，不等会话结束。
-6. 密钥不在本仓库。`vault/` 是加密包，仓库主人说解锁才解锁。
-7. 文件里的 `::BLOCK{k:v|k:v}`、`T:`、`A:⇒` 是声明记法，按字面读，速查见 `rules/GRAMMAR-CARD.md`。
+1. `handoff/CURRENT.md` first: what was done, what comes next, what is unverified. Restate it in two sentences, then start.
+2. Then every file under `soul/`: how the user works and where the lines are. Follow it; do not recite it.
+3. Then `memory/MEMORY.md`, one line per memory. Open a file under `memory/` only when the task needs it.
+4. Reading or updating the hand-off is not doing the work. Judge each `next` item before acting: it crosses a boundary, stop; evidence is missing, ask; it is the owner's call, defer. A recap or hand-off request authorizes nothing.
+5. New facts: if you can write this repo, edit the file, commit and push at once, one change per commit. If you cannot, hand the change back as `::PROGRESS{date|done|next|unverified}`, `::DECIDE{}` or `::LESSON{}` blocks in one code fence, every key present, `none` where there is no material; a git-capable tool reviews and records it.
+6. Update `handoff/CURRENT.md` at every milestone, not at session end.
+7. No secrets live here. `vault/` is encrypted and opens only when the owner says so.
+8. `::BLOCK{k:v|k:v}`, `T:` and `A:⇒` are declaration notation: read them literally; the quick card is `rules/GRAMMAR-CARD.md`.
 
----
-
-This is the entry point of one person's agent brain. Read `handoff/CURRENT.md` first, then `soul/`, then the index `memory/MEMORY.md`; open single memory files only when needed. On every milestone, update the handoff. If you can write to this repo, commit and push each change at once; if you cannot, hand the change back as a `::PROGRESS{}` block. No runtime to load. No secrets live here; `vault/` is encrypted and opens only when the owner says so.
-
-<!-- Gate: keep the whole file within 400 tokens (measure with the ilang.ai/playground token counter; cut the English paragraph first). This file doubles as the Claude.ai project instructions, ChatGPT custom instructions and Gemini Gem instructions. Nothing in it needs editing to start. -->
+<!-- Gate: about 400 tokens on the receiving model's tokenizer; measure before changing. Doubles as Claude.ai project, ChatGPT custom and Gemini Gem instructions. -->
 """
 
-INIT_GRAMMAR_CARD = """# iLang declaration notation (for reading a brain, not for writing the spec)
+INIT_GRAMMAR_CARD = """# iLang notation quick card (for reading a brain)
 
-- `::NAME{k:v|k2:v2}` is one declaration block. NAME is upper case. Fields are separated by `|`, key and value by `:`.
-- Blocks nest: `::CORE{ ::GENE{...} }`. Indentation is only for reading.
-- `T:` one trait per line, meaning "I do it this way".
-- `A:x⇒y` one anti-pattern per line, meaning "x leads to y, don't".
-- `conf:tentative|confirmed` confidence; `scope:global|project` scope; `when:condition` applies only under that condition.
-- `@NAME` in upper case is an entity: a person, a repo, a machine, a task.
-- `::STATE{@X, k:v}` the state of an entity right now. `::FACT{key:k|value:v}` one fact.
-  `::PROGRESS{done|next|unverified}` progress. `::DECIDED{what|why|context}` a decision.
-  `::LEARNED{what|from:...}` a lesson. `::BOUNDARY{never:...|scope:...}` a hard boundary; it always wins.
-- How to read: take keys and values literally; no runtime or dictionary is needed. An unknown block is a labelled note: read its body.
+- `::NAME{k:v|k2:v2}` is one declaration block. NAME is upper case. Fields split on `|`, key and value on `:`.
+- `::GENE{name|conf|scope}` is followed by `T:` lines (traits: I do it this way) and `A:x⇒y` lines (anti-patterns: x leads to y, don't).
+- `conf:tentative|confirmed` confidence; `scope:global|project` scope; `when:condition` says when a block applies; it is not a release clause.
+- `@NAME` in upper case is an entity: person, repo, machine, task.
+- `::STATE{@X, k:v}` an entity's state now. `::FACT{key|value|conf}` a fact. `::PROGRESS{date|done|next|unverified}` progress.
+  `::DECIDE{@X}{what|why|context}` a decision, X = who decided. `::LESSON{id|type|scope|conf}` plus the next line of prose = a lesson.
+  `::BOUNDARY{never|scope}` a hard boundary: it always wins, no condition lifts it, never offer a way around it.
+- How to read: take keys and values literally; no dictionary needed. An unknown block is a labelled note: read its body.
+- Restating a hand-off: item by item, verbatim, keep the numbering, do not rephrase.
+- Writing a block back: the whole block inside a triple-backtick fence; every key present, `none` for a key you have no material for; count the keys before sending.
 - Never say DNA, gene or mutation to the user; say "I noted that" or "you told me last time".
-- The full spec is at github.com/ilang-ai/ilang-spec. Reading a brain does not need it.
 """
 
 INIT_SOUL_MD = """---
@@ -1324,11 +1338,14 @@ generated:
   at: {opened}
 ---
 
-::STATE{{@TASK, name:{task}, repo:{repo}, branch:{branch}, cwd:{cwd}}}
-::PROGRESS{{done:<finished, listed by milestone>|next:<the first thing to do next>|unverified:<claimed done but not tested>}}
-::FACT{{key:where_files_are|value:<paths of deliverables, scripts, logs>}}
-::FACT{{key:blockers|value:<what is stuck and who decides>}}
-::DECIDED{{<what was settled this round>|<why>|<context>}}
+::STATE{{@OWNER, kind:person, role:owner, alias:the I in this chat}}
+::STATE{{@TASK, name:{task}, repo:{repo}, branch:{branch}, cwd:{cwd}, owner:@OWNER}}
+::PROGRESS{{date:{date}|done:§<section> <finished, listed by milestone>|next:<the first thing to do next>|unverified:<claimed done but not tested>}}
+::FACT{{key:where_files_are|value:<paths of deliverables, scripts, logs>|conf:confirmed}}
+::FACT{{key:blockers|value:<what is stuck and who decides>|conf:confirmed}}
+::DECIDE{{@OWNER}}{{what:<what was settled this round>|why:<why, or none>|context:<the block above it rests on, or none>}}
+::LESSON{{id:<key>|type:<kind>|scope:project|conf:tentative}}
+<the lesson in one line. Source: where it came from>
 
 ## Claim and close
 
@@ -1346,7 +1363,7 @@ def _git_branch(repo: Path) -> str:
 
 def render_handoff(repo: Path, project: str, task: str, agent: str) -> str:
     now = _now_iso()
-    return HANDOFF_TEMPLATE.format(project=project, opened=now, agent=agent, by=GENERATED_BY, task=task,
+    return HANDOFF_TEMPLATE.format(project=project, opened=now, date=now[:10], agent=agent, by=GENERATED_BY, task=task,
                                    repo=repo.name, branch=_git_branch(repo), cwd=str(repo))
 
 
@@ -1536,17 +1553,18 @@ def _progress_parts(text: str) -> dict[str, str]:
         if m:
             body = m.group(1)
             parts: dict[str, str] = {}
-            keys = ["done", "next", "unverified"]
-            positions = []
-            for k in keys:
-                idx = body.find(("|" if k != "done" else "") + k + ":")
+            positions: list[tuple[int, str, int]] = []
+            for k in ("date", "done", "next", "unverified"):
+                if body.startswith(k + ":"):
+                    positions.append((0, k, len(k) + 1))
+                    continue
+                idx = body.find("|" + k + ":")
                 if idx >= 0:
-                    positions.append((idx, k))
+                    positions.append((idx, k, len(k) + 2))
             positions.sort()
-            for n, (idx, k) in enumerate(positions):
-                start = idx + len(k) + 1 + (0 if k == "done" else 1)
+            for n, (idx, k, plen) in enumerate(positions):
                 end = positions[n + 1][0] if n + 1 < len(positions) else len(body)
-                parts[k] = body[start:end].strip()
+                parts[k] = body[idx + plen:end].strip()
             return parts
     return {}
 
@@ -1615,7 +1633,7 @@ def cmd_handoff(repo: Path, action: str, agent: str, project: str | None, task: 
         print(f"project:    {fm.get('project')}")
         print(f"status:     {status}   opened: {fm.get('opened')}   claimed_by: {claimed}")
         parts = _progress_parts(text)
-        for k in ("done", "next", "unverified"):
+        for k in ("date", "done", "next", "unverified"):
             print(f"{k:<11} {parts.get(k, '(missing)')}")
         return 0
 
@@ -1651,6 +1669,350 @@ def cmd_handoff(repo: Path, action: str, agent: str, project: str | None, task: 
 
     print(f"ERROR   unknown handoff action {action!r}")
     return 2
+
+
+# ----------------------------------------------------------------------- paste
+
+PASTE_OPENING = {
+    "zh": "下面是一张记法速查卡和一份用这种记法写的工作交接单。请先读卡，再读交接单，然后只回一句「读完了」。后面我会提问。",
+    "en": "Below are a notation quick card and a hand-off note written in that notation. Read the card first, then the hand-off, then reply with just: done reading. I will ask questions after that.",
+}
+
+
+def _has_cjk(s: str) -> bool:
+    return any("\u4e00" <= ch <= "\u9fff" for ch in s)
+
+
+def handoff_blocks(text: str) -> str:
+    """CURRENT.md 去掉 frontmatter，取第一个 '## ' 标题之前的声明块区。"""
+    lines = text.split("\n")
+    try:
+        body = lines[_fm_region(lines) + 1:]
+    except FrontmatterError:
+        body = lines
+    out: list[str] = []
+    for ln in body:
+        if ln.startswith("## "):
+            break
+        out.append(ln.rstrip("\r"))
+    return "\n".join(out).strip("\n")
+
+
+def _secret_hits_in_text(text: str) -> list[str]:
+    hits: list[str] = []
+    for n, line in enumerate(text.splitlines(), 1):
+        for label, rx in SECRET_PATTERNS:
+            if rx.search(line):
+                hits.append(f"line {n}: secret-like token ({label})")
+    return hits
+
+
+def build_paste(repo: Path, lang: str) -> str:
+    card_path = repo / "rules" / "GRAMMAR-CARD.md"
+    cur = _handoff_path(repo)
+    if not card_path.is_file():
+        raise FileNotFoundError(f"{card_path} missing")
+    if not cur.is_file():
+        raise FileNotFoundError(f"{cur} missing (handoff open first)")
+    card = read_text(card_path).strip("\n")
+    blocks = handoff_blocks(read_text(cur))
+    if lang == "auto":
+        lang = "zh" if _has_cjk(card.split("\n", 1)[0]) else "en"
+    return f"{PASTE_OPENING[lang]}\n\n{card}\n\n---\n\n{blocks}\n"
+
+
+def cmd_paste(repo: Path, out: Path | None, lang: str) -> int:
+    try:
+        text = build_paste(repo, lang)
+    except FileNotFoundError as e:
+        print(f"ERROR   {e}", file=sys.stderr)
+        return 1
+    hits = _secret_hits_in_text(text)
+    if hits:
+        for h in hits:
+            print(f"ERROR   {h}", file=sys.stderr)
+        print(f"paste: refused, {len(hits)} secret-like hits; nothing written", file=sys.stderr)
+        return 1
+    data = text.encode("utf-8")
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(data)
+        print(f"paste   {out}: {len(data)} bytes, 0 secret-like hits; send it as one message (docs/PASTE.md)", file=sys.stderr)
+    else:
+        sys.stdout.write(text)
+        sys.stdout.flush()
+        print(f"paste   {len(data)} bytes, 0 secret-like hits; send it as one message (docs/PASTE.md)", file=sys.stderr)
+    return 0
+
+
+# ---------------------------------------------------------------- handoff review
+
+BLOCK_RE = re.compile(r"^::([A-Z][A-Z0-9_]*)\s*\{([^{}]*)\}\s*(?:\{(.*)\})?\s*$")
+REQUIRED_KEYS = {
+    "FACT": ("key", "value", "conf"),
+    "DECIDE": ("what", "why", "context"),
+    "LESSON": ("id", "type", "scope", "conf"),
+    "PROGRESS": ("date", "done", "next", "unverified"),
+    "BOUNDARY": ("never", "scope"),
+}
+ITEM_SPLIT_RE = re.compile(r"\s*[；;]\s*")
+
+
+def _fields(s: str, sep: str) -> tuple[list[str], dict[str, str]]:
+    """'k:v|k2:v2' 或 '@X, k:v, k2:v2' → (无键的位置项, {k: v})。"""
+    if sep == ",":
+        parts = re.split(r",\s*(?=[A-Za-z_][A-Za-z0-9_]*\s*:)", s)
+    else:
+        parts = s.split("|")
+    positional: list[str] = []
+    kv: dict[str, str] = {}
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*:(.*)$", part, re.S)
+        if m:
+            kv[m.group(1)] = m.group(2).strip()
+        else:
+            positional.append(part)
+    return positional, kv
+
+
+def parse_blocks(text: str) -> list[dict]:
+    """逐行识别 ::NAME{...} 块；GENE 收后续 T:/A: 行，LESSON 收紧跟的一行正文。围栏行跳过。"""
+    blocks: list[dict] = []
+    cur: dict | None = None
+    for n, raw in enumerate(text.split("\n"), 1):
+        line = raw.rstrip("\r").strip()
+        if line.startswith("```"):
+            continue
+        m = BLOCK_RE.match(line)
+        if m:
+            kind, head, extra = m.group(1), m.group(2).strip(), m.group(3)
+            b: dict = {"kind": kind, "head": head, "extra": extra, "body": [], "raw": line, "line": n}
+            if kind == "STATE":
+                pos, kv = _fields(head, ",")
+            elif kind == "DECIDE":
+                pos, kv = [head], _fields(extra or "", "|")[1]
+            else:
+                pos, kv = _fields(head, "|")
+            b["entity"] = pos[0] if pos else ""
+            b["kv"] = kv
+            blocks.append(b)
+            cur = b
+            continue
+        if not line:
+            cur = None
+            continue
+        if cur is not None:
+            if cur["kind"] == "GENE" and (line.startswith("T:") or line.startswith("A:")):
+                cur["body"].append(line)
+                continue
+            if cur["kind"] == "LESSON" and not cur["body"] and not line.startswith("#"):
+                cur["body"].append(line)
+                continue
+        cur = None
+    return blocks
+
+
+def _block_id(b: dict) -> tuple:
+    k = b["kind"]
+    kv = b.get("kv", {})
+    if k in ("STATE", "GENE"):
+        return (k, b.get("entity", ""))
+    if k == "FACT":
+        return (k, kv.get("key", ""))
+    if k == "LESSON":
+        return (k, kv.get("id", ""))
+    if k == "DECIDE":
+        return (k, b.get("entity", ""), kv.get("what", ""))
+    if k == "BOUNDARY":
+        return (k, kv.get("never", ""))
+    if k == "PROGRESS":
+        return (k,)
+    return (k, b["raw"])
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _items(s: str) -> list[str]:
+    return [i for i in (x.strip() for x in ITEM_SPLIT_RE.split(s or "")) if i and i not in ("none", "无")]
+
+
+def _touches_boundary(item: str, never: str) -> bool:
+    a, b = _norm(item).lower(), _norm(never).lower()
+    if not a or not b:
+        return False
+    if a in b or b in a:
+        return True
+    toks_a = set(re.findall(r"[a-z][a-z0-9_\-]{4,}", a))
+    toks_b = set(re.findall(r"[a-z][a-z0-9_\-]{4,}", b))
+    return bool(toks_a & toks_b)
+
+
+def cmd_handoff_review(repo: Path, candidate: Path, baseline: Path | None, validator: Path | None) -> int:
+    base_path = baseline or _handoff_path(repo)
+    if not base_path.is_file():
+        print(f"STOP    baseline {base_path} missing; a candidate cannot be its own baseline")
+        return 1
+    if not candidate.is_file():
+        print(f"ERROR   candidate {candidate} missing")
+        return 1
+    if candidate.resolve() == base_path.resolve():
+        print("STOP    candidate and baseline are the same file")
+        return 1
+    base_text = read_text(base_path)
+    cand_text = read_text(candidate)
+    rejects: list[str] = []
+    flags: list[str] = []
+    transitions: list[str] = []
+    adds: list[str] = []
+
+    for h in _secret_hits_in_text(cand_text):
+        rejects.append(f"candidate {h}")
+
+    base = parse_blocks(base_text)
+    cand = parse_blocks(cand_text)
+    base_by: dict[tuple, dict] = {}
+    for b in base:
+        base_by.setdefault(_block_id(b), b)
+    cand_by: dict[tuple, dict] = {}
+    for b in cand:
+        cand_by.setdefault(_block_id(b), b)
+    if not cand:
+        rejects.append("candidate has no declaration blocks")
+
+    # 1. 边界：原样保留，不挂 when:
+    base_bounds = {_norm(b["raw"]) for b in base if b["kind"] == "BOUNDARY"}
+    cand_bounds = {_norm(b["raw"]) for b in cand if b["kind"] == "BOUNDARY"}
+    for raw in sorted(base_bounds - cand_bounds):
+        rejects.append(f"boundary deleted or rewritten: {raw}")
+    for b in cand:
+        if b["kind"] == "BOUNDARY" and "when" in b["kv"]:
+            rejects.append(f"boundary carries when: (line {b['line']}): {b['raw']}")
+
+    # 2. 必填键、空值
+    for b in cand:
+        req = REQUIRED_KEYS.get(b["kind"])
+        if req:
+            for k in req:
+                if k not in b["kv"]:
+                    rejects.append(f"{b['kind']} line {b['line']}: key {k} missing")
+                elif b["kv"][k] == "":
+                    rejects.append(f"{b['kind']} line {b['line']}: key {k} empty (write none)")
+        if b["kind"] == "LESSON" and not b["body"]:
+            rejects.append(f"LESSON line {b['line']}: body line missing")
+        if b["kind"] == "STATE" and not b.get("entity", "").startswith("@"):
+            rejects.append(f"STATE line {b['line']}: no @entity")
+        if b["kind"] == "DECIDE" and not b.get("entity", "").startswith("@"):
+            rejects.append(f"DECIDE line {b['line']}: decider missing")
+
+    # 3. PROGRESS 逐项
+    bp = next((b for b in base if b["kind"] == "PROGRESS"), None)
+    cp = next((b for b in cand if b["kind"] == "PROGRESS"), None)
+    if bp and not cp:
+        rejects.append("PROGRESS block missing in candidate")
+    if bp and cp:
+        bd, bn, bu = (_items(bp["kv"].get(k, "")) for k in ("done", "next", "unverified"))
+        cd, cn, cu = (_items(cp["kv"].get(k, "")) for k in ("done", "next", "unverified"))
+        cand_all = set(cd) | set(cn) | set(cu)
+        for it in bd:
+            if it not in cd:
+                rejects.append(f"done item removed: {it}")
+        for it in bn:
+            if it not in cand_all:
+                rejects.append(f"next item dropped without a word: {it}")
+        for it in bu:
+            if it not in cand_all:
+                rejects.append(f"unverified item dropped without a word: {it}")
+        nevers = [b["kv"].get("never", "") for b in base + cand if b["kind"] == "BOUNDARY"]
+        for it in cd:
+            if it in bd:
+                continue
+            hit = next((nv for nv in nevers if _touches_boundary(it, nv)), None)
+            if hit:
+                rejects.append(f"done item touches a boundary ({hit}): {it}")
+            elif it in bn or it in bu:
+                transitions.append(f"next/unverified -> done, needs evidence: {it}")
+            else:
+                flags.append(f"new done item not in baseline, needs evidence: {it}")
+        for it in cn:
+            if it not in bn and it not in bd and it not in bu:
+                adds.append(f"next: {it}")
+        for it in cu:
+            if it not in bu and it not in bn and it not in bd:
+                adds.append(f"unverified: {it}")
+        if bp["kv"].get("date") and cp["kv"].get("date") and cp["kv"]["date"] < bp["kv"]["date"]:
+            flags.append(f"PROGRESS date went backwards: {bp['kv']['date']} -> {cp['kv']['date']}")
+
+    # 4. 标识与值
+    for bid, b in base_by.items():
+        if b["kind"] in ("PROGRESS", "BOUNDARY"):
+            continue
+        c = cand_by.get(bid)
+        if c is None:
+            label = {"DECIDE": "decision rewritten or removed", "FACT": "fact dropped", "LESSON": "lesson dropped",
+                     "STATE": "entity dropped", "GENE": "gene dropped"}.get(b["kind"], "block dropped")
+            rejects.append(f"{label}: {b['raw']}")
+            continue
+        if b["kind"] == "FACT" and _norm(c["kv"].get("value", "")) != _norm(b["kv"].get("value", "")):
+            flags.append(f"fact {bid[1]} value changed: {b['kv'].get('value')} -> {c['kv'].get('value')}")
+        if b["kind"] == "DECIDE":
+            for k in ("why", "context"):
+                if _norm(c["kv"].get(k, "")) != _norm(b["kv"].get(k, "")):
+                    flags.append(f"decision {bid[2]!r}: {k} changed")
+        if b["kind"] in ("FACT", "LESSON", "GENE"):
+            o, n2 = b["kv"].get("conf", ""), c["kv"].get("conf", "")
+            if o != n2:
+                flags.append(f"{b['kind']} {bid[1]} conf changed {o} -> {n2} (needs support)")
+        if b["kind"] in ("LESSON", "GENE") and [_norm(x) for x in c["body"]] != [_norm(x) for x in b["body"]]:
+            flags.append(f"{b['kind']} {bid[1]} body changed")
+        if b["kind"] == "STATE":
+            for k, v in b["kv"].items():
+                if k not in c["kv"]:
+                    rejects.append(f"state {bid[1]} key {k} dropped")
+                elif _norm(c["kv"][k]) != _norm(v):
+                    flags.append(f"state {bid[1]} {k} changed: {v} -> {c['kv'][k]}")
+    for cid, c in cand_by.items():
+        if cid not in base_by and c["kind"] != "PROGRESS":
+            adds.append(f"{c['kind']}: {c['raw']}")
+
+    # 5. 可选：正典校验器
+    if validator is not None:
+        if not validator.is_file():
+            rejects.append(f"validator {validator} not found")
+        else:
+            try:
+                r = subprocess.run([sys.executable, "-X", "utf8", str(validator), "--lint", str(candidate), "--strict"],
+                                   capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+                tail = (r.stdout + r.stderr).strip().splitlines()[-3:]
+                if r.returncode != 0:
+                    rejects.append("canon validator --strict failed: " + " | ".join(tail))
+                else:
+                    print("ok      canon validator --strict passed")
+            except (OSError, subprocess.TimeoutExpired) as e:
+                rejects.append(f"canon validator could not run: {e}")
+
+    print(f"review  baseline  {base_path}")
+    print(f"        candidate {candidate}: {len(cand)} blocks vs {len(base)} in baseline")
+    for s in rejects:
+        print(f"REJECT  {s}")
+    for s in flags:
+        print(f"FLAG    {s}")
+    for s in transitions:
+        print(f"TRANSITION {s}")
+    for s in adds:
+        print(f"ADD     {s}")
+    if rejects:
+        print(f"review: REJECTED ({len(rejects)}); baseline stays; nothing written")
+        return 1
+    if flags or transitions:
+        print(f"review: {len(flags)} to decide, {len(transitions)} transitions need evidence; baseline stays until the owner accepts; nothing written")
+        return 3
+    print(f"review: clean, {len(adds)} additions; accept by archiving the baseline and saving the candidate as CURRENT.md (nothing written)")
+    return 0
 
 
 # ------------------------------------------------------------------------ main
@@ -1727,14 +2089,22 @@ def main(argv=None) -> int:
     y.add_argument("--direction", choices=("both", "to-cc", "from-cc"), default="both")
     y.add_argument("--dry-run", action="store_true")
 
-    h = sub.add_parser("handoff", help="3.5 协议：open / claim / close / show")
-    h.add_argument("action", choices=("open", "claim", "close", "show"))
+    h = sub.add_parser("handoff", help="3.5 协议：open / claim / close / show；review 比对别的模型交回的候选交接单")
+    h.add_argument("action", choices=("open", "claim", "close", "show", "review"))
+    h.add_argument("candidate", nargs="?", help="review：候选交接单文件")
     h.add_argument("--repo", default=str(default_repo))
     h.add_argument("--agent", help="默认环境变量 BRAIN_AGENT 或 brain.py")
     h.add_argument("--project", help="open / close 时写进新 CURRENT.md 的 project")
     h.add_argument("--task", help="open / close 时写进 ::STATE 的一句话任务")
     h.add_argument("--slug", help="close 时归档文件名 YYYY-MM-DD-<slug>.md 的 slug；默认用 project")
     h.add_argument("--no-commit", action="store_true", help="只改文件不提交")
+    h.add_argument("--baseline", help="review：基线文件；默认 handoff/CURRENT.md")
+    h.add_argument("--validator", help="review：正典校验器 ilang_grammar_validator.py 的路径，给了就跑 --lint --strict")
+
+    p = sub.add_parser("paste", help="拼给没有工具的对话 AI 的那条消息：开场句 + 速查卡 + --- + 交接单声明块（docs/PASTE.md）")
+    p.add_argument("--repo", default=str(default_repo))
+    p.add_argument("--out", help="写到文件；缺省打到标准输出")
+    p.add_argument("--lang", choices=("auto", "zh", "en"), default="auto", help="开场句语言；auto 按速查卡标题判断")
 
     args = ap.parse_args(argv)
     agent_default = os.environ.get("BRAIN_AGENT") or "brain.py"
@@ -1748,8 +2118,17 @@ def main(argv=None) -> int:
         project_dir = Path(args.project_dir).resolve() if args.project_dir else repo.parent
         return cmd_sync(repo, cc_home, project_dir, args.direction, args.dry_run)
     if args.cmd == "handoff":
+        if args.action == "review":
+            if not args.candidate:
+                print("ERROR   handoff review needs the candidate file")
+                return 2
+            return cmd_handoff_review(Path(args.repo).resolve(), Path(args.candidate).resolve(),
+                                      Path(args.baseline).resolve() if args.baseline else None,
+                                      Path(args.validator).resolve() if args.validator else None)
         return cmd_handoff(Path(args.repo).resolve(), args.action, args.agent or agent_default,
                            args.project, args.task, args.slug, args.no_commit)
+    if args.cmd == "paste":
+        return cmd_paste(Path(args.repo).resolve(), Path(args.out).resolve() if args.out else None, args.lang)
     if args.cmd == "export-drive":
         return cmd_export_drive(Path(args.repo).resolve(), Path(args.to) if args.to else None, args.account)
     if args.cmd == "status":
