@@ -30,11 +30,7 @@ No plain-text intermediate file is written. The tool prints file names, byte cou
 
 ## Redaction markers and fingerprints
 
-Memory text never carries a credential value. It carries a marker:
-
-```
-[REDACTED <kind> <fingerprint>]
-```
+Memory text never carries a credential value. It carries a marker, written `[REDACTED <kind> <fingerprint>]`.
 
 `kind` is a lower-case slug that says which key it is and whose (for example `db-password-staging`, `cloud-account-id-main`). `fingerprint` is derived from the value: strip a well-known vendor prefix if there is one (the OpenAI-style, GitHub token, and similar prefixes the tool knows), then take the first 4 and last 4 characters when the remainder is 24 characters or longer, otherwise the first 2 and last 2, joined by `...`. Short values show fewer characters on purpose, so a ten-character password does not leak most of itself through its fingerprint.
 
