@@ -9,6 +9,14 @@
 <meta name="theme-color" content="#e9eaec" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1a1b1d" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://ilang-ai.github.io/Mem-Forever/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Mem-Forever · memory that outlives the session">
+<meta property="og:description" content="A persistent memory layer for AI agents on the iLang protocol. One private Git repository: profile, one file per memory, a hand-off note, an encrypted vault. Any tool that reads files can use it; a chat with no tools gets it pasted.">
+<meta property="og:url" content="https://ilang-ai.github.io/Mem-Forever/">
+<meta property="og:image" content="https://ilang-ai.github.io/Mem-Forever/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="alternate" hreflang="zh" href="https://github.com/ilang-ai/Mem-Forever/blob/main/docs/README.zh.md">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f1a'/%3E%3Cpath d='M18 17H13v30h5M46 17h5v30h-5' fill='none' stroke='%23d4a858' stroke-width='2.8'/%3E%3Crect x='29.6' y='19' width='4.8' height='4.6' fill='%23d4a858'/%3E%3Crect x='30' y='27.5' width='4' height='16' fill='%23d4a858'/%3E%3C/svg%3E">
 <style>
@@ -19,7 +27,7 @@
   --signal:#9a6f22;--signal-text:#7a5a1c;
   --f-sans:"Bahnschrift",-apple-system,"SF Pro Text","Segoe UI","Noto Sans","DejaVu Sans",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
   --f-mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
-  --pad:clamp(20px,5vw,72px);--max:1120px;--measure:66ch;
+  --pad:clamp(20px,5vw,72px);--max:1120px;--measure:62ch;
   --ease:cubic-bezier(.16,1,.3,1);
   color-scheme:light;
 }
@@ -49,7 +57,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.5}
 .wrap{max-width:var(--max);margin:0 auto;padding-left:var(--pad);padding-right:var(--pad)}
 
 /* top bar */
-.top{display:flex;align-items:center;justify-content:space-between;gap:24px;height:60px;border-bottom:1px solid var(--line-soft)}
+.bar{border-bottom:1px solid var(--line-soft)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:24px;height:60px}
 .brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-weight:600;letter-spacing:-.01em}
 .brand svg{width:26px;height:26px;display:block}
 .top nav{display:flex;gap:22px;font-size:15px}
@@ -57,28 +66,28 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.5}
 .top nav a:hover{color:var(--ink)}
 
 /* hero */
-.hero{padding-top:clamp(56px,9vw,120px);padding-bottom:clamp(40px,6vw,72px)}
+.hero{padding-top:clamp(44px,5.5vw,72px);padding-bottom:clamp(40px,6vw,72px)}
 .hero h1{font-size:clamp(2.5rem,5.6vw,4.25rem);line-height:1.08;letter-spacing:-.02em;max-width:18ch}
 .hero h1 .signal{color:var(--signal-text);display:block}
-.lede{font-size:clamp(1.1rem,1.6vw,1.3rem);line-height:1.5;color:var(--ink-2);max-width:var(--measure);margin-top:28px}
-.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:36px}
-.pill{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:999px;border:1px solid var(--line);text-decoration:none;font-weight:600;font-size:15px;color:var(--ink);transition:background .2s,color .2s,border-color .2s}
+.lede{font-size:clamp(1.1rem,1.6vw,1.3rem);line-height:1.5;color:var(--ink-2);max-width:var(--measure);margin-top:24px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.pill{display:inline-flex;align-items:center;min-height:44px;padding:10px 20px;border-radius:999px;border:1px solid var(--line);text-decoration:none;font-weight:600;font-size:15px;color:var(--ink);transition:background .2s,color .2s,border-color .2s}
 .pill:hover{border-color:var(--ink)}
 .pill.solid{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .pill.solid:hover{background:var(--ink-2);border-color:var(--ink-2)}
 
 /* the ruler: three sessions, one note */
-.ruler{margin:clamp(56px,8vw,96px) 0 0;position:relative}
+.ruler{margin:clamp(40px,5vw,64px) 0 0;position:relative}
 .ruler .track{position:relative;height:1px;background:var(--line);margin:0 2px}
 .ruler .tick{position:absolute;top:-10px;width:1px;height:21px;background:var(--line)}
 .ruler .tick.here{background:var(--signal);width:2px;top:-14px;height:29px}
 .ruler .labels{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:18px;font-size:14px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .ruler .labels span:nth-child(2){text-align:center;color:var(--signal-text)}
 .ruler .labels span:nth-child(3){text-align:right}
-.note{margin:40px auto 0;max-width:720px;border:1px solid var(--line);border-radius:14px;padding:18px 22px;background:var(--bg-2);opacity:1}
+.note{margin:32px auto 0;max-width:720px;border:1px solid var(--line);border-radius:14px;padding:16px 22px;background:var(--bg-2);opacity:1}
 .note code{display:block;font-size:.95rem;line-height:1.55}
 .note .k{color:var(--signal-text)}
-.ruler figcaption{margin:14px auto 0;max-width:720px;font-size:14px;color:var(--ink-3)}
+.ruler figcaption{margin:14px auto 0;max-width:720px;font-size:14px;color:var(--ink-3);text-wrap:balance}
 @media (prefers-reduced-motion: no-preference){
   .note{animation:settle .7s var(--ease) both}
   .ruler .tick.here{animation:point .7s var(--ease) both}
@@ -109,11 +118,13 @@ section h2{font-size:clamp(1.6rem,2.6vw,2.1rem);line-height:1.2;letter-spacing:-
 .out + p, .cap{font-size:14px;color:var(--ink-3);margin-top:12px;max-width:var(--measure)}
 table{border-collapse:collapse;width:100%;max-width:880px;font-variant-numeric:tabular-nums}
 th,td{text-align:left;vertical-align:top;padding:14px 20px 14px 0;border-bottom:1px solid var(--line-soft);font-size:16px;line-height:1.45}
-th{font-weight:600;color:var(--ink);width:38%}
+th{font-weight:600;color:var(--ink)}
+th[scope=row],thead th:first-child{width:38%}
 td{color:var(--ink-2)}
 thead th{font-size:14px;color:var(--ink-3);font-weight:400;padding-bottom:10px}
 .tools-row{max-width:var(--measure);color:var(--ink-2)}
 .tools-row b{font-weight:600;color:var(--ink)}
+.tools-row code{white-space:nowrap}
 
 /* footer */
 footer{border-top:1px solid var(--line-soft);padding:36px 0 56px;font-size:14px;color:var(--ink-3)}
@@ -123,18 +134,18 @@ footer a{color:var(--ink-2)}
 @media (max-width: 720px){
   .top nav{gap:16px;font-size:14px}
   .rows > li{grid-template-columns:1fr;gap:10px}
-  .ruler .labels{font-size:13px}
   table,tbody,tr,th,td{display:block;width:auto}
   thead{display:none}
   tr{padding:16px 0;border-bottom:1px solid var(--line-soft)}
   th,td{border:0;padding:0;font-size:15px}
-  th{padding-bottom:4px}
+  th,th[scope=row]{width:auto;padding-bottom:4px}
 }
 </style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="top wrap">
+<header class="bar">
+<div class="top wrap">
   <a class="brand" href="https://ilang.ai" aria-label="iLang">
     <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#0b0f1a"/><path d="M18 17H13v30h5M46 17h5v30h-5" fill="none" stroke="#d4a858" stroke-width="2.8" stroke-linecap="square"/><rect x="29.6" y="19" width="4.8" height="4.6" fill="#d4a858"/><rect x="30" y="27.5" width="4" height="16" fill="#d4a858"/></svg>
     <span>iLang</span>
@@ -144,21 +155,22 @@ footer a{color:var(--ink-2)}
     <a href="https://github.com/ilang-ai/Mem-Forever#readme">The book</a>
     <a href="https://github.com/ilang-ai/Mem-Forever/blob/main/docs/README.zh.md" lang="zh" hreflang="zh">中文</a>
   </nav>
+</div>
 </header>
 
 <main id="main">
   <section class="hero wrap">
     <h1>Mem-Forever<span class="signal">memory that outlives the session.</span></h1>
-    <p class="lede">Every AI tool forgets you when the window closes. Mem-Forever keeps the memory in your own private Git repository: a profile, one file per memory, a hand-off note that says where you stopped, and an encrypted vault for your keys. Any tool that reads files can use it, and a chat with no tools gets it pasted.</p>
+    <p class="lede">Every AI tool forgets you when the window closes. Mem-Forever keeps the memory in your own private Git repository: a profile, one file per memory, a hand-off note that says where you stopped, and an encrypted vault for your keys. Any tool that reads files can use it, and a chat with no tools gets&nbsp;it&nbsp;pasted.</p>
     <p class="actions">
       <a class="pill solid" href="https://github.com/new?template_name=Mem-Forever&amp;template_owner=ilang-ai">Use this template</a>
       <a class="pill" href="https://github.com/ilang-ai/Mem-Forever#readme">Read the engineering book</a>
     </p>
     <figure class="ruler" aria-labelledby="ruler-cap">
       <div class="track" aria-hidden="true">
-        <span class="tick" style="left:8%"></span>
+        <span class="tick" style="left:0"></span>
         <span class="tick here" style="left:50%"></span>
-        <span class="tick" style="left:92%"></span>
+        <span class="tick" style="right:0"></span>
       </div>
       <div class="labels" aria-hidden="true">
         <span>session 1, closed</span>
@@ -177,20 +189,20 @@ footer a{color:var(--ink-2)}
         <h3>A coding agent with the repo on disk</h3>
         <div>
           <p>It reads its own instruction file, then the hand-off, then the profile, and works on the files directly. Every save is its own commit, pushed at once.</p>
-          <p class="tools">Claude Code, Cursor, Codex, Copilot, Gemini CLI, Hermes</p>
+          <p class="tools">Claude Code, Cursor, Codex, Copilot, Gemini&nbsp;CLI, Hermes</p>
         </div>
       </li>
       <li>
         <h3>A chat with a connector or a clone</h3>
         <div>
-          <p>It reads <code>BRAIN.md</code> first, eight points under about 400 tokens, then the files it names, and writes back through git when it can.</p>
-          <p class="tools">ChatGPT, Claude.ai, Gemini web, through GitHub or Drive</p>
+          <p>It reads <code>BRAIN.md</code> first, eight points, about 400 tokens on most tokenizers and 588 on Claude's, then the files it names, and writes back through git when it can.</p>
+          <p class="tools">ChatGPT, Claude.ai, Gemini web, through&nbsp;GitHub&nbsp;or&nbsp;Drive</p>
         </div>
       </li>
       <li>
         <h3>A chat with no tools at all</h3>
         <div>
-          <p>One pasted message: a notation card and the hand-off blocks, built by <code>brain.py paste</code> in the owner's language. It hands changes back as blocks in a code fence; a tool that can write git reviews them before anything is merged.</p>
+          <p>One pasted message: a notation card and the hand-off blocks, built by <code>brain.py paste</code> in the owner's language. It hands changes back as blocks in a code fence; a tool that can write git reviews them before anything&nbsp;is&nbsp;merged.</p>
           <p class="tools">Any web chat, signed in or not</p>
         </div>
       </li>
@@ -201,27 +213,27 @@ footer a{color:var(--ink-2)}
     <h2>What a session does</h2>
     <ol class="steps">
       <li><strong>Reads the hand-off</strong> and tells you in two sentences what was done, what comes next and what is unverified.</li>
-      <li><strong>Commits anything left unsaved</strong> by the previous session before touching the work.</li>
+      <li><strong>Commits what the last session left unsaved</strong> before touching the work.</li>
       <li><strong>Reads the profile</strong>, yours and the agent's own, and the memory index; opens a memory file only when the task needs it.</li>
       <li><strong>Judges each next item</strong> before acting: a boundary conflict stops, missing evidence asks, the owner's call waits.</li>
-      <li><strong>Updates the hand-off at every milestone</strong>, not at session end, so a closed window loses nothing.</li>
+      <li><strong>Updates the hand-off at every milestone</strong>, not at session end, so a closed&nbsp;window&nbsp;loses&nbsp;nothing.</li>
     </ol>
     <div class="judge">
       <h3>A hand-off request authorizes nothing</h3>
-      <p>Reading, restating or exporting the note is recording, not doing. An item enters <code>done</code> only with evidence from the conversation or an observed result, and it keeps its text.</p>
+      <p>Reading, restating or exporting the note is recording, not doing. An item enters <code>done</code> only with evidence from the conversation or an observed result; the item moves whole, its text unchanged.</p>
     </div>
   </section>
 
   <section id="review" class="wrap">
     <h2>Review before merge</h2>
-    <p class="intro">A hand-off that comes back from another model is a candidate, not the truth. The tool compares it block by block with the accepted one and never writes: a deleted boundary, a forbidden or unevidenced item in done, a missing key, a changed identifier or a silent drop is rejected; the rest is listed for you to decide.</p>
+    <p class="intro">A hand-off that comes back from another model is a candidate, not the truth. The tool compares it block by block with the accepted one and never writes: a deleted boundary, a forbidden or unevidenced item in done, a missing key, a changed identifier or a silent drop is rejected; the rest is listed for&nbsp;you&nbsp;to&nbsp;decide.</p>
     <div class="out"><pre><span class="rj">REJECT</span>  boundary deleted or rewritten: ::BOUNDARY{never:force-push main|scope:project}
 <span class="rj">REJECT</span>  DECIDE line 9: key why empty (write none)
 <span class="rj">REJECT</span>  next item dropped without a word: write the release note
 FLAG    decision 'ship from main, no release branch': why changed
 TRANSITION next/unverified -&gt; done, needs evidence: tag and release
 review: REJECTED (3); baseline stays; nothing written</pre></div>
-    <p class="cap">Output of <code>brain.py handoff review</code> on the template hand-off, 2026-11-05, with a candidate that dropped the boundary and emptied a reason.</p>
+    <p class="cap">Output of <code>brain.py handoff review</code> on an example hand-off, 2026-11-05: the candidate dropped the boundary, emptied a reason and dropped a next&nbsp;item.</p>
   </section>
 
   <section id="measured" class="wrap">
@@ -229,19 +241,19 @@ review: REJECTED (3); baseline stays; nothing written</pre></div>
     <table>
       <thead><tr><th scope="col">What</th><th scope="col">Result</th></tr></thead>
       <tbody>
-        <tr><th scope="row">The notation card, English</th><td>381 to 410 tokens on ten models' own tokenizers, 539 on Claude's. 1351 bytes.</td></tr>
-        <tr><th scope="row">The notation card, Chinese</th><td>352 to 392 tokens on the same ten, 542 on Claude's. Tested in conversation on twelve model tiers, weak to strong.</td></tr>
-        <tr><th scope="row"><code>BRAIN.md</code>, the eight points</th><td>399 to 406 tokens on GPT, GLM and Kimi, 427 on Doubao, 588 on Claude's.</td></tr>
+        <tr><th scope="row">The notation card, English, 1351 bytes</th><td>381 to 410 tokens on ten models' own tokenizers, 539 on Claude's.</td></tr>
+        <tr><th scope="row">The notation card, Chinese</th><td>352 to 392 tokens on the same ten, 542 on Claude's. Tested in conversation on twelve model tiers,&nbsp;weak&nbsp;to&nbsp;strong.</td></tr>
+        <tr><th scope="row"><code>BRAIN.md</code>, the eight points</th><td>399 to 406 tokens on GPT, GLM and Kimi, 427 on Doubao,&nbsp;588&nbsp;on&nbsp;Claude's.</td></tr>
         <tr><th scope="row">One web chat, signed out, no tools</th><td>Read the card and a 14-block hand-off in one message; restated 4, 6 and 9 items verbatim; its write-back was reviewed, corrected once, accepted.</td></tr>
         <tr><th scope="row">Template files</th><td>Every file with notation passes the iLang grammar validator with zero errors and zero warnings.</td></tr>
       </tbody>
     </table>
-    <p class="cap">Dates and methods are in the engineering book, section 5.</p>
+    <p class="cap">Dates and methods are in the engineering book,&nbsp;section&nbsp;5.</p>
   </section>
 
   <section id="tools" class="wrap">
     <h2>Works with the tools you already use</h2>
-    <p class="tools-row"><b>Claude Code</b> reads <code>CLAUDE.md</code>, <b>Cursor</b> reads <code>.cursorrules</code>, <b>Codex</b> reads <code>AGENTS.md</code>, <b>Copilot</b> reads <code>.github/copilot-instructions.md</code>, <b>Gemini CLI</b> reads <code>GEMINI.md</code>. The five files carry the same text. Web chats take <code>BRAIN.md</code> as their instructions and reach the repo through a connector, a Drive mirror or a pasted message.</p>
+    <p class="tools-row"><b>Claude Code</b> reads <code>CLAUDE.md</code>, <b>Cursor</b> reads <code>.cursorrules</code>, <b>Codex</b> reads <code>AGENTS.md</code>, <b>Copilot</b> reads <code>.github/copilot-instructions.md</code>, <b>Gemini CLI</b> reads <code>GEMINI.md</code>. The five files carry the same text. Web chats take <code>BRAIN.md</code> as their instructions and reach the repo through a connector, a&nbsp;Drive&nbsp;mirror&nbsp;or&nbsp;a&nbsp;pasted&nbsp;message.</p>
   </section>
 </main>
 

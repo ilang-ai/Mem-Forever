@@ -36,7 +36,7 @@ Inherit the iLang world: paper and ink schemes (`#e9eaec` / `#121314` and `#1a1b
 
 ## Evidence on hand
 
-Release v2.1.0 (2026-11-05), Zenodo concept DOI 10.5281/zenodo.22865160 (version DOI 10.5281/zenodo.23958957). Token measurements on real tokenizers: English card 381 to 410 on ten models and 539 on Claude; Chinese card 352 to 392 and 542; BRAIN.md 399 to 406 on GPT, GLM and Kimi, 427 on Doubao, 588 on Claude. A signed-out web chat read the card and a 14-block hand-off in one message and restated 4, 6 and 9 items verbatim; its write-back was reviewed, corrected once and accepted (2026-11-05). Every template file with notation passes the iLang grammar validator with zero errors and zero warnings.
+Release v2.1.0 (2026-11-05), Zenodo concept DOI 10.5281/zenodo.22865160 (version DOI 10.5281/zenodo.23958957). Token measurements on real tokenizers: English card 381 to 410 on ten models and 539 on Claude; Chinese card 352 to 392 and 542; BRAIN.md 399 to 406 on GPT, GLM and Kimi, 427 on Doubao, 588 on Claude. A signed-out web chat read the card and a 14-block hand-off in one message and restated 4, 6 and 9 items verbatim; its write-back was reviewed, corrected once and accepted (2026-11-05). Every template file with notation passes the iLang grammar validator with zero errors and zero warnings. The review output shown on the page is a real run of `brain.py handoff review` (2026-11-05) on an example hand-off whose candidate dropped the boundary, emptied a decision's reason and dropped a next item: 3 REJECT, 1 FLAG, 1 TRANSITION, exit 1.
 
 ## Product principles
 
