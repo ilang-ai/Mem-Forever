@@ -11,7 +11,9 @@ abstract: >-
   what comes next, one file per memory, and an age-encrypted vault for keys,
   with a single-file Python tool to check, migrate and install. It needs no
   server and no account: create the repository from the template and point the
-  agent at it. Documentation in nine languages.
+  agent at it. Version 2.1 makes the README the engineering book: copy it into
+  any agent and it can carry it out; the hand-off review accepts a partial
+  write-back. Documentation in nine languages.
 type: software
 authors:
   - given-names: "Long Quan"
@@ -21,8 +23,8 @@ authors:
 repository-code: "https://github.com/ilang-ai/Mem-Forever"
 url: "https://github.com/ilang-ai/Mem-Forever"
 license: MIT
-version: "2.0.0"
-date-released: "2026-11-04"
+version: "2.1.0"
+date-released: "2026-11-09"
 keywords:
   - AI memory
   - persistent memory
