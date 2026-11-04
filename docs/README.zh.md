@@ -1,11 +1,18 @@
 # 永久记忆
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <img src="assets/banner-light.svg" alt="Mem-Forever：记忆比会话活得久。一把会话的标尺，当前这一场用金色标出。" width="1200">
+</picture>
+
 > **Mem-Forever · 跨会话 · 跨模型 · 跨工具**
 > 基于 iLang 协议构建的 AI 持久记忆层。一个私有 Git 仓库就是 Agent 的大脑：画像、一文件一记忆、一张写着「做到哪了」的交接单，以及一个加密的钥匙包。**2.1：这页 README 就是工程书。把它整页复制给任何 AI Agent，Agent 就能照着执行。**
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
 [![Protocol](https://img.shields.io/badge/protocol-iLang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
 [![Tools](https://img.shields.io/badge/works_with-Claude_·_Cursor_·_Codex_·_Copilot_·_Gemini-d4a858?style=flat-square)]()
+
+落地页：<https://ilang-ai.github.io/Mem-Forever/>
 
 [English](../README.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt.md) | [Русский](README.ru.md)
 
