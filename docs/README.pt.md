@@ -8,6 +8,8 @@
 
 [English](../README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md)
 
+> ⚠️ Esta tradução ainda descreve o Mem-Forever 1.0. As mudanças da 2.0 (nova estrutura, hand-off, vault, `brain.py`) ainda não foram traduzidas; veja [README.md](../README.md) (inglês) ou [README.zh.md](README.zh.md) (chinês).
+
 ---
 
 ## Resumo

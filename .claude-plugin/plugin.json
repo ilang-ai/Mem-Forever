@@ -1,9 +1,9 @@
 {
   "name": "mem-forever",
-  "version": "1.0.0",
-  "description": "Every AI tool forgets you. This one doesn't. Ever. Auto-saves your preferences, decisions, and lessons to .ilang/ — survives every session, every tool, every migration.",
+  "version": "2.0.0",
+  "description": "Every AI tool forgets you. This one doesn't. Ever. Your Git repo becomes a portable agent brain: profile, one file per memory, a hand-off note that says where you stopped, an encrypted vault for keys. Survives every session, every tool, every migration.",
   "author": {
-    "name": "I-Lang Protocol",
+    "name": "iLang Protocol",
     "url": "https://github.com/ilang-ai/Mem-Forever"
   },
   "license": "MIT",
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "mem-forever active. Check .ilang/ for uncommitted changes from previous session — if found, commit and push immediately. Then read .ilang/soul.md and .ilang/memory.md. If soul.md is empty or template-only, run onboarding: ask ONE question at a time, casual tone, cover role + work style + preferences. Create soul.md when you have enough. Never say 'DNA', 'gene', 'mutation', 'decay'. Say 'saved some notes' or 'I remember from last time'.",
+            "prompt": "mem-forever active. Read handoff/CURRENT.md first and tell the user in two sentences what was done, what is next and what is unverified; if its status is open, claim it. Check soul/, memory/, handoff/ and log.md for uncommitted changes from a previous session; if found, commit and push immediately. Then read soul/soul.md and the index memory/MEMORY.md; open files under memory/ only as the task needs them. Judge each next item before acting: a boundary conflict stops, missing evidence asks, the owner's call defers; a recap or hand-off request authorizes nothing. If soul/soul.md has status: template, run onboarding: ask ONE question at a time, casual tone, cover role + work style + preferences. Never say 'DNA', 'gene', 'mutation', 'decay'. Say 'saved some notes' or 'I remember from last time'.",
             "timeout": 15
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Session ending. Review this session for decisions, lessons, mistakes fixed, facts discovered. Append to .ilang/memory.md in format: ::DECIDED{}, ::LEARNED{}, ::FACT{}, ::PROGRESS{}. Update .ilang/soul.md if repeated patterns (3x+) or explicit rejections observed. Commit and push .ilang/ now.",
+            "prompt": "Session ending. Review this session for decisions, lessons, mistakes fixed, facts discovered. Save each as its own file under memory/ with a frontmatter that has type (user, feedback, project or reference), name and description, and add one line to memory/MEMORY.md. Update ::PROGRESS{date|done|next|unverified} in handoff/CURRENT.md; an item enters done only with evidence, every key present, none where there is no material. Update soul/soul.md only for repeated patterns (3x+) or explicit rejections. Never write a secret value; write [REDACTED kind fingerprint] and keep the value for the vault. Commit and push now.",
             "timeout": 30
           }
         ]
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Context compacting. Save all unsaved observations to .ilang/memory.md and .ilang/soul.md. Commit and push .ilang/ now. Compress: patterns not events, max 200 lines.",
+            "prompt": "Context compacting. Save all unsaved observations under memory/ (one file each, with type frontmatter, index line in memory/MEMORY.md) and update handoff/CURRENT.md. Commit and push now. Compress: patterns not events, 200 lines per file max.",
             "timeout": 30
           }
         ]

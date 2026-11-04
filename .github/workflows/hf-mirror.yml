@@ -22,8 +22,9 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           mkdir -p /tmp/hf-push
-          cp README.md LICENSE CLAUDE.md GEMINI.md AGENTS.md /tmp/hf-push/
+          cp README.md LICENSE CLAUDE.md GEMINI.md AGENTS.md BRAIN.md index.md log.md /tmp/hf-push/
           cp -r .ilang /tmp/hf-push/
+          cp -r soul memory handoff rules tools /tmp/hf-push/
           cp -r docs /tmp/hf-push/
           cp -r skills /tmp/hf-push/
           cp -r data /tmp/hf-push/
