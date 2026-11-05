@@ -35,6 +35,22 @@
       "relation": "isDocumentedBy",
       "resource_type": "publication-technicalnote",
       "scheme": "url"
+    },
+    {
+      "identifier": "10.5281/zenodo.21821452",
+      "relation": "isDerivedFrom",
+      "resource_type": "software",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.23990334",
+      "relation": "references",
+      "resource_type": "software",
+      "scheme": "doi"
     }
+  ],
+  "references": [
+    "Zhu, L. Q. (2026). iLang Protocol Specification, release 5.0.5: MODULE::MEMORY names Mem-Forever as the reference template. https://doi.org/10.5281/zenodo.23990334",
+    "Zhu, L. Q. (2026). iLang Protocol Specification (concept record). https://doi.org/10.5281/zenodo.21821452"
   ]
 }

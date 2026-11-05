@@ -35,3 +35,18 @@ keywords:
   - hand-off
   - OKF
   - age encryption
+references:
+  - type: software
+    title: "iLang Protocol Specification, release 5.0.5 (MODULE::MEMORY names Mem-Forever as the reference template)"
+    authors:
+      - family-names: "Zhu"
+        given-names: "Long Quan"
+    year: 2026
+    doi: "10.5281/zenodo.23990334"
+  - type: software
+    title: "iLang Protocol Specification (concept record)"
+    authors:
+      - family-names: "Zhu"
+        given-names: "Long Quan"
+    year: 2026
+    doi: "10.5281/zenodo.21821452"
