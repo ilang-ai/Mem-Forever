@@ -52,6 +52,8 @@ A lost pepper is a lost repository, nothing less and nothing more; the pepper is
 
 A grant is a line of **this machine's** git config, never a file of the repository: `brain.grant.<DOOR> true` for one door, `brain.grant.all true` for every standing door, `brain.grant.write true` for storing new keys. The owner says yes once; the tool records it:
 
+It lives outside the repository on purpose. Whatever reads the repository reads any rule written inside it, and what it can read it can bypass; so the permission is kept where only this machine holds it, in the clone's git config, which no clone carries away and no paste includes. The repository says which doors exist; the machine says which of them open here.
+
 ```
 python -X utf8 tools/brain.py grant HK          # this door, this machine
 python -X utf8 tools/brain.py grant --all       # every standing door on this machine (never a top or once door)

@@ -256,6 +256,8 @@ $$r = h / a \ge 0.30 \quad\text{且没有 done 项碰到边界} \Rightarrow \tex
 
 锚点的 `words:` 填主人自己的词，Agent 从不写的那些（§5）。认人告诉 Agent 在跟谁说话，它不是锁。判每个 `next` 项的是 iLang 的判断层，基于模糊集隶属度 [[9]](#references)；记忆模块在正典里 [[10]](#references)。
 
+一口气说完：打不开就是设计失败，不是安全；读脑子就是把树重新长一遍；链断了就忘了，链在就永远记得。
+
 ---
 
 ## 5. 实测
@@ -275,11 +277,11 @@ $$r = h / a \ge 0.30 \quad\text{且没有 done 项碰到边界} \Rightarrow \tex
 ### 3.1 新在哪
 
 - **一个值三态。** 明文只在进程里；**静态编码**在 `env/keys.env`（`enc1:`，用 `env/pepper` 可逆，pepper 是 init 写一次、随仓库提交的 32 个随机字节；防误泄露，不是加密）；配对时才封。`ledger encode` 把 3.0 的明文行转过去，`ledger decode` 只凭仓库把所有值明文打给主人。
-- **授权记在本机。** 门在这台机器上开，要主人点一次头：`brain.py grant <DOOR>`、`--all`、`--write`，记在这个克隆的 git config，永不进仓库。顶门仍是一次性码；新机器第一次解锁点一次头就完。
+- **授权记在本机。** 门在这台机器上开，要主人点一次头：`brain.py grant <DOOR>`、`--all`、`--write`，记在这个克隆的 git config，永不进仓库。不进仓库是有道理的：写在仓库里的规则，读得到仓库的就读得到，读得到就绕得过；只有这台机器持有的那一行，克隆带不走，贴出去也不带。顶门仍是一次性码；新机器第一次解锁点一次头就完。
 - **扫描改收割。** `memory/` `soul/` `handoff/` 里的钥匙形字符串是一条 WARN，不再拒提交；`ledger harvest` 把它变成一扇门（正文换成 `{{DOOR}}`，值编码存起来，`verify:none` 等主人说怎么验）；`migrate-cc` 顺手收割搬过来的东西。`log/` 一行不动。来源：Opus 5.5 与 4.6 对 3.0.0 的评审（2026-11-08），342 个迁移文件里 145 处命中拒了 136 次提交。
 - **证据也有来源。** `evidence add` 默认记 `owner_claimed`，带 `--transcript` 在主人发言里找到才记 `owner_verbatim`；`evidence confirm <q>` 是主人本人背书。两样都没有的，按 `agent_inferred` 读。
 - **同一份评审里的小事：** 不声明范围时 `unlock` 从交接单取范围，两边都没有就拒；克隆后钩子没开 `check` 会提醒（每台机器跑一次 `init .`）；`paste` 遮而不拒；自测不留目录。
-- **brain.py 2.1**，`tools/test_brain.py` 37 个场景。设计记录 MEM-FOREVER-3-1-THREE-STATES v1.0（2026-11-08），主人留在仓库外；正典 SECRETS 行在 ilang-spec 5.0.10 跟上。
+- **brain.py 2.1.1**，`tools/test_brain.py` 39 个场景（3.1.1 加两个：没钥匙的行告警、子进程输出按本地码页解）。设计记录 MEM-FOREVER-3-1-THREE-STATES v1.0（2026-11-08），主人留在仓库外；正典 SECRETS 行在 ilang-spec 5.0.10 跟上。
 
 ### 3.0 新在哪
 

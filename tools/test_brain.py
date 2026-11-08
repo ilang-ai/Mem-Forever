@@ -611,6 +611,31 @@ class BrainTests(unittest.TestCase):
         self.assertEqual(self.read("env/pepper").strip(), hexpepper)
         self.assertIn("env/pepper", run(["git", "ls-files", "env/pepper"], self.repo).stdout)
 
+    def test_t17_check_warns_on_a_row_with_nothing_to_open(self):
+        self.grant_all()
+        self.declare_scope()
+        r = self.cli("ledger", "add", "repo", "--door", "https://github.com/example/repo", "--kind", "value", "--recover", "github")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        r = self.cli("check")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("row REPO has nothing to open", r.stdout)
+        self.assertIn("::FACT", r.stdout)
+        r = self.cli("ledger", "add", "root", "--door", "ssh root@203.0.113.9", "--kind", "root", "--recover", "console")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        r = self.cli("check")
+        self.assertNotIn("row ROOT has nothing to open", r.stdout)
+        r = self.cli("ledger", "add", "api", "--door", "https://api.example.com", "--kind", "token", "--value", "tok-Example-1", "--recover", "console")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        r = self.cli("check")
+        self.assertNotIn("row API has nothing to open", r.stdout)
+
+    def test_t18_verify_output_is_decoded_in_the_shell_codepage(self):
+        text = "不是内部或外部命令"
+        self.assertEqual(brain._decode_output(text.encode("gbk"), fallback="gbk"), text)
+        self.assertEqual(brain._decode_output(text.encode("utf-8"), fallback="gbk"), text)
+        self.assertEqual(brain._decode_output(b"", fallback="gbk"), "")
+        self.assertNotIn("\ufffd", brain._decode_output(text.encode("gbk"), fallback="gbk"))
+
     def test_remote_parser(self):
         self.assertEqual(brain.parse_remote("https://github.com/ilang-ai/Mem-Forever.git"), ("github.com", "ilang-ai", "Mem-Forever"))
         self.assertEqual(brain.parse_remote("git@github.com:ilang-ai/Mem-Forever.git"), ("github.com", "ilang-ai", "Mem-Forever"))

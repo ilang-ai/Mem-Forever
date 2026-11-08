@@ -141,6 +141,7 @@ import base64
 import hashlib
 import io
 import json
+import locale
 import os
 import platform
 import re
@@ -153,7 +154,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 
-VERSION = "2.1"
+VERSION = "2.1.1"
 GENERATED_BY = f"brain.py/{VERSION}"
 OKF_VERSION = "0.2"
 OKF_DIRS = ("soul", "memory", "handoff")
@@ -458,6 +459,20 @@ def cmd_check(repo: Path) -> int:
     for r in rows:
         if not r.get("error") and not r["kv"].get("door"):
             errors.append(f"{LEDGER_REL}:{r['line'] + 1}: row {r['name']} has no door")
+    # 3.1.1: a standing row with no value and no ref that resolves is not a door yet. Seen in the wild: public
+    # repository addresses written as doors with verify:gh_public. Top and once doors are exempt (the owner's code).
+    keys_now = _keys_env(repo)
+    for r in rows:
+        if r.get("error") or not r["kv"].get("door") or is_top(r) or grant_mode(r) != "standing":
+            continue
+        kv = r["kv"]
+        if kv.get("value") not in (None, "", "none"):
+            continue
+        ref = kv.get("ref") or ""
+        if ref not in ("", "none") and ref in keys_now:
+            continue
+        warnings.append(f"{LEDGER_REL}:{r['line'] + 1}: row {r['name']} has nothing to open (no value, no ref in {KEYS_REL}); "
+                        f"store the key (ledger add --value, or ledger encode) or, if it is a public address, keep it as a ::FACT and drop the row")
     logdir = repo / LOG_DIR
     if logdir.is_dir():
         for p in sorted(logdir.glob("*.md")):
@@ -2668,6 +2683,36 @@ def _save_ledger(repo: Path, lines: list[str]) -> None:
     _write_lf_atomic(ledger_path(repo), "\n".join(lines).rstrip("\n") + "\n")
 
 
+def _decode_output(b: bytes, fallback: str | None = None) -> str:
+    """Text of a child process: UTF-8 when it is UTF-8, else the shell's own codepage (cmd.exe on a Chinese Windows
+    answers in cp936), so a FAIL line shows the shell's words and not replacement characters."""
+    if not b:
+        return ""
+    try:
+        return b.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    cands: list[str] = [fallback] if fallback else []
+    if os.name == "nt":
+        try:
+            import ctypes
+            cands.append("cp%d" % ctypes.windll.kernel32.GetOEMCP())
+        except Exception:
+            pass
+    getenc = getattr(locale, "getencoding", None)   # 3.11+: the locale's encoding, UTF-8 mode ignored
+    if getenc:
+        cands.append(getenc())
+    cands.append(locale.getpreferredencoding(False))
+    for enc in cands:
+        if not enc:
+            continue
+        try:
+            return b.decode(enc, errors="replace")
+        except LookupError:
+            continue
+    return b.decode("utf-8", errors="replace")
+
+
 def _ledger_verify_env(repo: Path, row: dict) -> dict:
     env = dict(os.environ)
     val = ledger_value(repo, row)
@@ -2849,10 +2894,11 @@ def cmd_ledger(repo: Path, action: str, name: str | None, opts: dict) -> int:
                 skipped += 1
                 continue
             try:
-                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                res = subprocess.run(cmd, shell=True, capture_output=True,
                                      timeout=timeout, env=_ledger_verify_env(repo, r), cwd=str(repo))
                 rc = res.returncode
-                tail = (res.stdout + res.stderr).strip().splitlines()[-1:] if (res.stdout or res.stderr) else []
+                out = _decode_output(res.stdout) + _decode_output(res.stderr)
+                tail = out.strip().splitlines()[-1:] if out.strip() else []
             except subprocess.TimeoutExpired:
                 rc, tail = 124, ["timeout"]
             except OSError as e:
