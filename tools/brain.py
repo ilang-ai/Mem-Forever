@@ -154,7 +154,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 
-VERSION = "2.1.1"
+VERSION = "2.1.2"
 GENERATED_BY = f"brain.py/{VERSION}"
 OKF_VERSION = "0.2"
 OKF_DIRS = ("soul", "memory", "handoff")
@@ -2726,6 +2726,92 @@ def _ledger_verify_env(repo: Path, row: dict) -> dict:
     return env
 
 
+IMPORT_SKIP = "*.py,*.pyc,*.bak*,*.md,*.pub,*.pub.*,*recipient*,*fullchain*,*.gitkeep"
+IMPORT_KINDS = {".env": "env_file", ".key": "token", ".txt": "token", ".pem": "private_key", ".conf": "config",
+                ".json": "credential_json", ".pw": "password", ".token": "token", ".secret": "token"}
+_IMPORT_VERSION_SUFFIX = re.compile(r"([-_.]v\d+(?:\.\d+)*)?(?:[-_]\d{4}-\d{2}-\d{2})?$")
+
+
+def import_row_name(filename: str) -> str:
+    """ALIYUN_ZHANGMEI from aliyun-zhangmei-v1.0-2026-09-23.env: the stem without a version or date suffix."""
+    stem = filename
+    for ext in sorted(IMPORT_KINDS, key=len, reverse=True):
+        if stem.lower().endswith(ext):
+            stem = stem[: -len(ext)]
+            break
+    stem = _IMPORT_VERSION_SUFFIX.sub("", stem, count=1)
+    return ledger_name(stem) or ledger_name(filename)
+
+
+def import_kind(filename: str) -> str:
+    low = filename.lower()
+    for ext, kind in IMPORT_KINDS.items():
+        if low.endswith(ext):
+            return kind
+    if low.startswith("id_") or low.endswith("_ed25519") or low.endswith("_rsa"):
+        return "ssh_key"
+    return "file"
+
+
+def ledger_import_dir(repo: Path, src: str | None, opts: dict) -> int:
+    """3.1.2: one ledger row per file in a directory, the file text encoded into env/keys.env. Nothing is deleted or moved;
+    the files stay where they are. --glob picks files (comma-separated patterns, default *), --skip drops the public and
+    the code (default IMPORT_SKIP), --kind overrides the kind guessed from the extension, --dry-run only lists."""
+    import fnmatch
+    if not src:
+        print("ERROR   ledger import needs a directory: ledger import <dir> [--glob a,b] [--skip a,b] [--kind k] [--scope s] [--dry-run]")
+        return 2
+    d = Path(src).expanduser()
+    if not d.is_dir():
+        print(f"ERROR   {src} is not a directory")
+        return 2
+    globs = [g.strip() for g in (opts.get("glob") or "*").split(",") if g.strip()]
+    skips = [g.strip() for g in (opts.get("skip") if opts.get("skip") is not None else IMPORT_SKIP).split(",") if g.strip()]
+    dry = bool(opts.get("dry_run"))
+    if not dry and not _need_write_grant(repo, f"ledger import {d.name}"):
+        return 2
+    rows, _ = load_ledger(repo)
+    taken = {r["name"] for r in rows if not r.get("error")}
+    done = skipped = 0
+    for p in sorted(d.iterdir()):
+        if not p.is_file():
+            continue
+        if not any(fnmatch.fnmatch(p.name, g) for g in globs) or any(fnmatch.fnmatch(p.name, g) for g in skips):
+            continue
+        try:
+            value = p.read_bytes().decode("utf-8")
+        except UnicodeDecodeError:
+            print(f"skip    {p.name}: not UTF-8 text")
+            skipped += 1
+            continue
+        if not value.strip():
+            print(f"skip    {p.name}: empty")
+            skipped += 1
+            continue
+        base = import_row_name(p.name)
+        name, n = base, 2
+        while name in taken:
+            name, n = f"{base}_{n}", n + 1
+        kind = opts.get("kind") or import_kind(p.name)
+        if dry:
+            print(f"would   {name} ({kind}, {len(value.encode('utf-8'))} bytes) <- {p.name}")
+            done += 1
+            continue
+        rc = cmd_ledger(repo, "add", name, {
+            "door": f"file:{p.name}", "kind": kind, "value": value, "verify": opts.get("verify") or "none",
+            "recover": opts.get("recover") or f"{d} on {platform.node()}", "scope": opts.get("scope") or "none",
+            "why": opts.get("why") or f"imported {_today()} from {d.name}/; the owner writes the door and the why",
+            "top": bool(opts.get("top")), "grant": opts.get("grant")})
+        if rc != 0:
+            print(f"ERROR   {p.name}: ledger add returned {rc}")
+            return rc
+        taken.add(name)
+        done += 1
+    print(f"ledger import: {done} row(s) {'listed' if dry else 'added'}, {skipped} skipped; files untouched in {d}; "
+          f"values {'not written' if dry else 'encoded in ' + KEYS_REL}; verify:none until the owner fills it")
+    return 0
+
+
 def cmd_ledger(repo: Path, action: str, name: str | None, opts: dict) -> int:
     rows, lines = load_ledger(repo)
     bad = [r for r in rows if r.get("error")]
@@ -2861,6 +2947,9 @@ def cmd_ledger(repo: Path, action: str, name: str | None, opts: dict) -> int:
             return 2
         print(val)
         return 0
+
+    if action == "import":
+        return ledger_import_dir(repo, name, opts)
 
     if action == "harvest":
         if not _need_write_grant(repo, "ledger harvest"):
@@ -4308,9 +4397,12 @@ def main(argv=None) -> int:
     p.add_argument("--lang", choices=("auto", "zh", "en"), default="auto", help="速查卡与开场句的语言；auto 按交接单判断（中文占比 >= 0.2 取 zh）；有 rules/GRAMMAR-CARD.<lang>.md 就用它")
     p.add_argument("--with-values", action="store_true", help="3.0：账本行带上值（默认不带；贴给没有工具的聊天模型用不上值）")
 
-    lg = sub.add_parser("ledger", help="3.0 授权账本 env/ledger.env：list / add / verify / show；3.1 encode / decode / harvest / reveal")
-    lg.add_argument("action", choices=("list", "add", "verify", "show", "encode", "decode", "harvest", "reveal"))
-    lg.add_argument("name", nargs="?", help="行名；verify 可用 all")
+    lg = sub.add_parser("ledger", help="3.0 授权账本 env/ledger.env：list / add / verify / show；3.1 encode / decode / harvest / reveal；3.1.2 import <目录>")
+    lg.add_argument("action", choices=("list", "add", "verify", "show", "encode", "decode", "harvest", "reveal", "import"))
+    lg.add_argument("name", nargs="?", help="行名；verify 可用 all；import 时是目录")
+    lg.add_argument("--glob", help="import：只收匹配的文件名，逗号分隔，默认 *")
+    lg.add_argument("--skip", help="import：跳过的文件名模式，逗号分隔，默认跳过代码、备份、公钥、证书链")
+    lg.add_argument("--dry-run", action="store_true", dest="dry_run", help="import：只列出会建哪些行，不写")
     lg.add_argument("--path", action="append", dest="paths", help="harvest：只收这些路径（默认 memory soul handoff）")
     lg.add_argument("--pepper", help="decode：env/pepper 丢了时用 owner 留的十六进制")
     lg.add_argument("--grant", choices=("once", "standing"), help="add：授权档，默认顶门 once 其他 standing")
@@ -4449,7 +4541,7 @@ def main(argv=None) -> int:
                           {"door": args.door, "kind": args.kind, "value": args.value, "ref": args.ref, "verify": args.verify,
                            "recover": args.recover, "scope": args.scope, "why": args.why, "top": args.top,
                            "with_value": args.with_value, "timeout": args.timeout, "paths": args.paths, "pepper": args.pepper,
-                           "grant": args.grant})
+                           "grant": args.grant, "glob": args.glob, "skip": args.skip, "dry_run": args.dry_run})
     if args.cmd == "unlock":
         return cmd_unlock(Path(args.repo).resolve(), args.name, args.scope, args.code, args.no_log)
     if args.cmd == "otp":

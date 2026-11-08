@@ -1,7 +1,7 @@
 ---
 name: mem-forever
 description: "Every AI tool forgets you. This one doesn't. Ever. One Git repo is your agent brain: profile, one file per memory, a hand-off note that says where you stopped, and a ledger of the keys that opens every door the brain can enter. Any tool that reads files can use it; a chat AI with no tools gets it pasted. Use this skill at session start to load the brain, at every milestone to save, and before merging a hand-off another model wrote."
-version: 3.1.1
+version: 3.1.2
 author: ilang-ai
 license: MIT
 metadata:

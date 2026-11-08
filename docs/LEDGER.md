@@ -101,6 +101,10 @@ python -X utf8 tools/brain.py migrate-2to3            # owner runs it; needs ~/.
 
 It opens the latest `vault/keys-*.age`, writes `keys/*.env` under `env/`, SSH keys under `env/ssh/`, the redacted memory values into `env/keys.env` encoded (3.1), one ledger row for each, then stamps every block `by:legacy` (`provenance init`). Fill `verify` and `recover` for each row, run `ledger verify all`, commit. The old `.age` files stay in git history. `vault pack`, `vault unpack` and `vault verify` remain for reading old bundles.
 
+## Coming from a directory of key files (3.1.2)
+
+Most brains start with a folder of `.env`, `.key` and `.pem` files and an `~/.ssh`. `python -X utf8 tools/brain.py ledger import <dir>` makes one row per file: the row is named after the file without its version or date suffix (`aliyun-zhangmei-v1.0-2026-09-23.env` becomes `ALIYUN_ZHANGMEI`), the kind is read from the extension (`env_file`, `token`, `private_key`, `config`, `ssh_key` for `id_*`), the whole file text is the value, encoded into `env/keys.env`, and the door is `file:<name>` until the owner writes what it really opens. Code, backups, public keys, recipients and certificate chains are skipped by default (`--skip` changes the list, `--glob` picks files, `--kind` overrides the guess), `--dry-run` lists without writing, and the source files are never moved or deleted. It needs the write grant once, like `ledger add`. For `~/.ssh`: `ledger import ~/.ssh --glob "id_*,*.pw"`.
+
 ## The one thing that must always work
 
 Download everything and hand it to any model: the card, the hand-off, the ledger. With `--with-values` it is the whole brain. No step of unlocking depends on a model reasoning; `brain.py` is the one that opens things, and the owner can run it alone: `ledger decode` needs the repository and nothing else, no grant, no passphrase, no second device.
