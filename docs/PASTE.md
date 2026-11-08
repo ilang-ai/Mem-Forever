@@ -14,6 +14,8 @@ The card follows the owner's language. `rules/GRAMMAR-CARD.md` is the English ca
 
 The command refuses to build the message when any line looks like a secret; fix the hand-off first.
 
+Since 3.2 the opening line also says how a gap comes back: not filled from recall, but as an `::EXCLUDE{}` block with the candidates, what refuted each one, and what remains; `brain.py review` and `verify` read it like any other block.
+
 ## One check before real work
 
 Ask: "Restate the hand-off's progress in three parts: done, next, unverified. Item by item, verbatim, keep the numbering." A model that paraphrases, merges items or drops the numbering did not read the notation; use a stronger tier or a shorter hand-off. Do not fix it by adding instructions to the card; the card is measured and tested as it is.

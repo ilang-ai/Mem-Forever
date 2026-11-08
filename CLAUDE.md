@@ -1,6 +1,6 @@
 # mem-forever
 
-::GENE{mem-forever|v:3.1|spec:ilang-v5.0}
+::GENE{mem-forever|v:3.2|spec:ilang-v5.0}
   T:this_repo_is_user_memory
   T:verify_the_ledger_before_the_handoff
   T:read_handoff_first
@@ -20,6 +20,7 @@
   T:every_block_says_by_whose_words_it_rests_on
   T:log_the_owner_turns_verbatim
   T:recognize_the_owner_by_trajectory_not_by_password
+  T:a_gap_is_closed_by_elimination_with_its_trail_never_by_recall
   A:skip_memory_read⇒context_loss
   A:overwrite_memory⇒append_or_merge
   A:ask_multiple_questions⇒one_only
@@ -31,6 +32,7 @@
   A:boundary_or_antipattern_without_owner_words⇒read_as_advice_and_rewritten
   A:seal_the_ledger_at_rest⇒self_lockout
   A:unlock_without_a_grant_on_this_machine⇒refused_ask_the_owner_once
+  A:fill_a_gap_from_recall⇒fabrication_write_an_EXCLUDE_or_leave_the_gap_open
 
 1.0 kept one long conversation going. 2.0 keeps the memory itself: the conversation can end, the brain stays, and the next session, in any tool, picks up where this one stopped. 2.1 adds the agent's own soul file and a review that accepts a partial write-back. 3.0 starts from the keys: memory is a derivation, the keys derive the tasks, the tasks yield constants, the logic between them is annotation. A ledger of every door, a key that arrives with the task, the owner recognized by trajectory, a source on every block, one gate for every writer.
 
@@ -170,7 +172,7 @@ A milestone is: a deploy succeeded, a config changed, a conclusion was reached, 
 
 When the task is done: set `status: closed`, move the file to `handoff/archive/YYYY-MM-DD-<slug>.md`, open a fresh `CURRENT.md`; one commit for both steps. Two CURRENT.md files collide: the newer `opened` stays.
 
-If you cannot write to the repo (a web chat tool), hand the change back to the user as `::PROGRESS{}`, `::DECIDE{}` or `::LESSON{}` blocks inside one code fence, every key present, `none` where there is no material. Keep every item's text as it is: an item moves between `done`, `next` and `unverified` whole, and evidence or news goes in a new item. A tool that can write git reviews them (next section) and records them.
+If you cannot write to the repo (a web chat tool), hand the change back to the user as `::PROGRESS{}`, `::DECIDE{}`, `::LESSON{}` or `::EXCLUDE{}` blocks inside one code fence, every key present, `none` where there is no material. Keep every item's text as it is: an item moves between `done`, `next` and `unverified` whole, and evidence or news goes in a new item. A tool that can write git reviews them (next section) and records them.
 
 ## Merging a hand-off another model wrote
 
@@ -206,6 +208,20 @@ Recognition reads the person, not you. `brain.py recognize` takes the `T:` and `
 - A behavior seen on three distinct calendar days (`seen:3`, `last:` moving) may go `confirmed`; three repeats in one session are one observation. Agent-sourced blocks still decay: unseen 90 days, back to tentative; 30 more, removed. Owner-sourced blocks never decay; only a tombstone removes one: `::DECIDE{@OWNER}{what:retire <the never text verbatim>|why:<the owner's words>|context:q:<key>|by:owner_verbatim|q:<key>}`, and the decision stays.
 - `brain.py review` runs on every change to `soul/`, `memory/` and `handoff/`, by every writer, through `tools/hooks/pre-commit`; `brain.py check` and the session start apply the same rules when reading, so a commit that bypassed the hook changes nothing.
 - Code memory is not kept: paths, versions, hashes, what a function does. HEAD holds them and HEAD is newer than memory. What stays is the reasoning HEAD does not hold: why a path was chosen, which paths were rejected, what must never be done here.
+
+## Completion by elimination (3.2)
+
+A gap in memory is closed by elimination, never by recall. List the candidates, strike each one a constant refutes (a ledger row, a `verify` result, a line of `log/`, a path that is not there, the owner's words), and write what remains beside the fact it completes:
+
+```
+::EXCLUDE{<id>|candidates:<a>;<b>;<c>|out:<a>(<the constant that refutes it>);<b>(<the constant>)|left:<c>|conf:tentative|by:agent_inferred}
+```
+
+- `candidates`, `out` and `left` are required; items are separated by `;`. An exclusion without `out:` is a guess: `brain.py review` refuses it. `left:none` is written when every candidate was struck; a visible open gap beats a silent one.
+- `brain.py verify` checks each refuting constant: a door name or a FACT key must exist, a date must be a `log/` file, `q:<key>` must be in `soul/evidence.md`; a path or free text is taken as named.
+- What `left` says is used as any agent fact, `conf:tentative`, and may carry a `next` item; it never makes or keeps a `::BOUNDARY{}` or an `A:` line. The owner confirms with `brain.py evidence confirm <id>`: `left` becomes `::FACT{key:<id>|…|by:owner_confirmed}` and the exclusion stays as the trail; agent-sourced exclusions decay like agent facts.
+- In a task, an exclusion goes under `unverified` in `handoff/CURRENT.md`; a no-tool model hands gaps back as exclusion blocks, never as filled-in facts (`brain.py paste` says so in its opening line).
+- Recognition is the same operation: the anchors show the turns are not another hand, which is why 0.30 of them suffices.
 
 ## Import
 
@@ -246,6 +262,10 @@ Do NOT batch multiple changes into one commit. Each save is its own commit. If u
 `tools/hooks/pre-commit` (installed by `brain.py install` or `init`) runs `brain.py review --staged` and `brain.py check` on every commit; `tools/hooks/pre-push` refuses to push memory to a remote that is public. Fix errors before the push; never `--no-verify`, it changes nothing because the same rules apply when the brain is read.
 
 If push fails (auth, network), tell user: "Memory saved locally. Run `git push` when ready."
+
+## Coming from 3.1
+
+Nothing to migrate: 3.2 adds the `::EXCLUDE{}` block and the behaviors above; existing files are read as before.
 
 ## Coming from 3.0
 

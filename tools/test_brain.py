@@ -34,6 +34,9 @@ def quiet(fn, *a, **k):
     return rc, buf.getvalue()
 
 
+EXCL = '::EXCLUDE{vault_packer|candidates:dell3660;claude_session;ds_other_machine|out:dell3660(path:~/.age/key.txt missing);claude_session(2026-11-03)|left:ds_other_machine|conf:tentative|by:agent_inferred}'
+
+
 class BrainTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="brain3-"))
@@ -679,6 +682,49 @@ class BrainTests(unittest.TestCase):
         r = self.cli("check")
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertNotIn("nothing to open", r.stdout)
+
+    def test_t20_verify_checks_what_refuted_each_struck_candidate(self):
+        self.write("memory/vault.md", "---\nname: vault\ndescription: who packed the vault\ntype: project\n---\n\n" + EXCL + "\n")
+        r = self.cli("verify")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("1 exclusion(s)", r.stdout)
+        self.assertIn("MISSING memory/vault.md vault_packer: out -> claude_session: 2026-11-03 names nothing the brain can see", r.stdout)
+        self.assertNotIn("dell3660", r.stdout.replace("candidates:dell3660", ""))
+        self.write("log/2026-11-03.md", "# 2026-11-03\n\n- the main session packed the vault\n")
+        r = self.cli("verify")
+        self.assertNotIn("MISSING", r.stdout)
+        self.write("memory/guess.md", "---\nname: guess\ndescription: x\ntype: project\n---\n\n::EXCLUDE{guess|candidates:a;b|out:none|left:a|conf:tentative|by:agent_inferred}\n")
+        r = self.cli("verify")
+        self.assertIn("MISSING memory/guess.md guess: out -> empty: a guess, not an elimination", r.stdout)
+
+    def test_t21_review_refuses_an_exclusion_without_out(self):
+        self.write("memory/guess.md", "---\nname: guess\ndescription: x\ntype: project\n---\n\n::EXCLUDE{guess|candidates:a;b|left:a|conf:tentative|by:agent_inferred}\n")
+        r = self.cli("review", "memory/guess.md")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("exclusion without out:", r.stdout)
+        self.write("memory/good.md", "---\nname: good\ndescription: x\ntype: project\n---\n\n" + EXCL + "\n")
+        r = self.cli("review", "memory/good.md")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.write("memory/bad.md", "---\nname: bad\ndescription: x\ntype: project\n---\n\n" + EXCL + "\n::BOUNDARY{never:trust_ds_other_machine|scope:all|by:agent_inferred}\n")
+        r = self.cli("review", "memory/bad.md")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("new boundary without owner source", r.stdout)
+
+    def test_t22_evidence_confirm_turns_left_into_a_fact_and_keeps_the_trail(self):
+        self.write("log/2026-11-03.md", "# 2026-11-03\n")
+        self.write("memory/vault.md", "---\nname: vault\ndescription: x\ntype: project\n---\n\n" + EXCL + "\n")
+        r = self.cli("evidence", "confirm", "vault_packer")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("left written as ::FACT{key:vault_packer}", r.stdout)
+        t = self.read("memory/vault.md")
+        self.assertIn("left:ds_other_machine|conf:confirmed|by:agent_inferred}", t)
+        self.assertIn("::FACT{key:vault_packer|value:ds_other_machine|why:vault_packer|used_by:none|conf:confirmed|by:owner_confirmed}", t)
+        r = self.cli("verify")
+        self.assertNotIn("MISSING", r.stdout)
+        self.write("memory/open.md", "---\nname: open\ndescription: x\ntype: project\n---\n\n::EXCLUDE{open_gap|candidates:a;b|out:a(2026-11-03);b(2026-11-03)|left:none|conf:tentative|by:agent_inferred}\n")
+        r = self.cli("evidence", "confirm", "open_gap")
+        self.assertIn("nothing was left, the gap stays open", r.stdout)
+        self.assertNotIn("::FACT{key:open_gap", self.read("memory/open.md"))
 
     def test_remote_parser(self):
         self.assertEqual(brain.parse_remote("https://github.com/ilang-ai/Mem-Forever.git"), ("github.com", "ilang-ai", "Mem-Forever"))

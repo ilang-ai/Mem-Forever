@@ -256,6 +256,8 @@ $$r = h / a \ge 0.30 \quad\text{且没有 done 项碰到边界} \Rightarrow \tex
 
 锚点的 `words:` 填主人自己的词，Agent 从不写的那些（§5）。认人告诉 Agent 在跟谁说话，它不是锁。判每个 `next` 项的是 iLang 的判断层，基于模糊集隶属度 [[9]](#references)；记忆模块在正典里 [[10]](#references)。
 
+**缺口靠排除补，不靠回忆。** 脑子里缺一条事实时，模型不去「想起来」，而是列出候选，拿常数一个个否：一行账本、一次 verify 的结果、`log/` 里的一行、一个不存在的路径、主人的原话。剩下的写在它补全的那条事实旁边：`::EXCLUDE{编号|candidates:…|out:候选(否掉它的常数);…|left:…|conf:tentative}`，agent 来源。没有 `out:` 的排除是猜，`review` 拒收；`verify` 核每个否定常数是不是脑子看得见的东西；主人一句 `evidence confirm <编号>`，`left` 升成确认的事实，排除块留作轨迹；全部否掉也写，`left:none`，看得见的空洞比看不见的强。认人是同一个操作，所以锚点命中 0.30 就够：它们证明的是「不是别人的手」。补全和编造只差一样东西，有没有这条轨迹。
+
 一口气说完：打不开就是设计失败，不是安全；读脑子就是把树重新长一遍；链断了就忘了，链在就永远记得。
 
 ---
@@ -281,7 +283,7 @@ $$r = h / a \ge 0.30 \quad\text{且没有 done 项碰到边界} \Rightarrow \tex
 - **扫描改收割。** `memory/` `soul/` `handoff/` 里的钥匙形字符串是一条 WARN，不再拒提交；`ledger harvest` 把它变成一扇门（正文换成 `{{DOOR}}`，值编码存起来，`verify:none` 等主人说怎么验）；`migrate-cc` 顺手收割搬过来的东西。`log/` 一行不动。来源：Opus 5.5 与 4.6 对 3.0.0 的评审（2026-11-08），342 个迁移文件里 145 处命中拒了 136 次提交。
 - **证据也有来源。** `evidence add` 默认记 `owner_claimed`，带 `--transcript` 在主人发言里找到才记 `owner_verbatim`；`evidence confirm <q>` 是主人本人背书。两样都没有的，按 `agent_inferred` 读。
 - **同一份评审里的小事：** 不声明范围时 `unlock` 从交接单取范围，两边都没有就拒；克隆后钩子没开 `check` 会提醒（每台机器跑一次 `init .`）；`paste` 遮而不拒；自测不留目录。
-- **brain.py 2.1.2**，`tools/test_brain.py` 40 个场景（3.1.2 加 `ledger import <目录>`：一个文件一行，公钥与代码跳过，值编码进 keys.env，源文件不动）。设计记录 MEM-FOREVER-3-1-THREE-STATES v1.0（2026-11-08），主人留在仓库外；正典 SECRETS 行在 ilang-spec 5.0.10 跟上。
+- **brain.py 2.2**，`tools/test_brain.py` 43 个场景（3.2 加排除三个：无 out 的 EXCLUDE 被 review 拒、verify 报否定常数指向空处、evidence confirm 把 left 升 FACT 并留轨迹；left:none 不生成 FACT）。设计记录 MEM-FOREVER-3-1-THREE-STATES v1.0（2026-11-08），主人留在仓库外；正典 SECRETS 行在 ilang-spec 5.0.10 跟上。
 
 ### 3.0 新在哪
 
