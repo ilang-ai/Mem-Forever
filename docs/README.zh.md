@@ -157,7 +157,8 @@ soul/soul.md          ← 你是谁（从对话中自动生成）
 soul/agent.md         ← Agent 自己的灵魂：你给它的人格，以及它跟你干活学到的
 memory/MEMORY.md      ← 索引，一行一条记忆
 memory/*.md           ← 一文件一记忆，带 `type` frontmatter
-env/ledger.env        ← 你的钥匙，一行一扇门，明文放在这个私有仓库里（docs/LEDGER.md）
+env/ledger.env        ← 你的钥匙，一行一扇门（docs/LEDGER.md）
+env/keys.env          ← 值，静态编码；用 init 写一次的 env/pepper 可逆，不是加密
 log/YYYY-MM-DD.md     ← 你的发言原文与 agent 的决策，认人读这里
 rules/GRAMMAR-CARD.md ← §1 那张记法卡（英文；GRAMMAR-CARD.zh.md 是中文）
 docs/PASTE.md         ← 第三条路：没有工具的对话 AI
@@ -215,7 +216,7 @@ A:无信号的冗长⇒浪费
 - **一条记忆一个文件**，放 `memory/`，带 `type` frontmatter（`user`、`feedback`、`project`、`reference`），`memory/MEMORY.md` 里加一行索引。追加或合并，不覆盖；存模式不存事件；日期写绝对值；一文件 200 行，超了把最旧的折成一段摘要。每次改动单独一个提交，立刻推送。
 - **`soul/soul.md`** 是主人的画像：`::STATE{@OWNER…}`、每个方面一个 `::GENE{}`（`T:` 特征、`A:` 反模式）、`::FACT{}`、`::BOUNDARY{}`。一个行为见三次升 `confirmed`；一次明确拒绝加一条 `A:`；tentative 的特征三十天没见到就删；两条矛盾的特征用 `when:` 按场景拆开。边界不拆，也永远不挂 `when:`。
 - **`soul/agent.md`** 是 Agent 自己的灵魂，2.1 新增：主人给它的人格块原样保留，版本与哈希记在 frontmatter；下面是它跟这个主人学到的，里程碑时自己用 `::LESSON{}`、`::GENE{}` 写。它永远不覆盖 `soul/soul.md`，也不越过任何边界。
-- **钥匙是脑子的起点。** `env/ledger.env` 一行一扇门：开什么、值或 `ref:`、验证命令、上次验证日期、丢了怎么回来、范围、顶门、为什么存在。行明文放在私有仓库里，钥匙可换，被锁在外面不可换。`brain.py unlock <名>` 只在当前 next 项点到这扇门时把那行打进上下文；顶门只认 owner 在场发的一次性码。只有配对时才封（`brain.py pair`），封给对方和 owner。见 [docs/LEDGER.md](LEDGER.md)。
+- **钥匙是脑子的起点。** `env/ledger.env` 一行一扇门：开什么、值或 `ref:`、验证命令、上次验证日期、丢了怎么回来、范围、顶门、为什么存在。行明文放在私有仓库里，钥匙可换，被锁在外面不可换。`brain.py unlock <名>` 只在当前 next 项点到这扇门时把那行打进上下文；顶门只认 owner 在场发的一次性码。只有配对时才封（`brain.py pair`），封给对方和 owner。见 [docs/LEDGER.md](LEDGER.md)。 3.1 起值静态编码（`enc1:`，用 `env/pepper` 可逆，不是加密），门在一台机器上开要主人点一次头。
 - **每个块都写 `by:` 它靠谁的话站着**：`owner_verbatim` 带 `q:` 指向 `soul/evidence.md` 里你的原话、`owner_confirmed`、`agent_inferred`、`imported`、3.0 之前的块是 `legacy`。只有 owner 来源能立、能留边界和 `A:` 行，其余读作建议，由 `brain.py provenance repair` 改写。你的发言原文进 `log/`，`brain.py recognize` 拿它对 soul 的锚点，三成命中零越界就是你。代码记忆不记，HEAD 永远比记忆新。
 - **透明。** Agent 不对用户说「DNA」「gene」「mutation」「decay」，只说「我记下来了」「上次你说过」。主人随时能读、能改、能删任何文件。
 
@@ -228,6 +229,32 @@ A:无信号的冗长⇒浪费
 3. `BRAIN.md` 和记法卡在接收方自己的分词器上都在 400 token 附近；要实测，不要估（§5）。
 4. 五个指令文件与 `skills/mem-forever/SKILL.md` 的正文逐字节相同。
 5. 交回来的交接单先过 `handoff review` 再替换 `CURRENT.md`，提交说明写明从谁那接受的。
+
+---
+
+### 4.7 为什么站得住
+
+三个结果撑着这套设计，每个都比设计老，每个都有 DOI；数字在 §5。
+
+**只有一份真状态，没有第二份副本。** 把代码的事实存进记忆，就是给仓库 HEAD 已经持有的东西再留一份副本，两份一定漂移：HEAD 动了，副本没动，Agent 拿着旧的去改新的。Mem-Forever 不存代码记忆。设 $S$ 是仓库和机器在 HEAD 上持有的状态，$M$ 是脑子，
+
+$$M = R \cup K \cup H, \qquad M \cap \operatorname{derivable}(S) = \varnothing,$$
+
+$R$ 是 HEAD 不持有的推理（为什么选这条路、否掉了什么、这里什么永远不许做），$K$ 是门的账本，$H$ 是交接单。每个事实只有一份，就没有什么要失效；顺序来自 git 的记录，正如 Lamport 用记录而不是时钟给事件排序 [[1]](#references)。
+
+**脑子是生成元，不是快照。** 存 Agent 看到的一切，记忆随转录增长；存推导，记忆随「推不出来的部分」增长。Kolmogorov、Solomonoff、Chaitin 把一个对象的信息量定义为能产生它的最短程序的长度 [[2]](#references) [[3]](#references) [[4]](#references) [[5]](#references)。脑子就是那个程序：$K \to T \to C$，钥匙推任务，任务出常数，注释是程序正文。聪明模型跑一遍把整棵树长回来；笨模型拿展开后的输出（`brain.py paste`）。§5 的 token 数是 Shannon 对发出去那条消息的度量 [[6]](#references)；脑子的大小是 Kolmogorov 对留下来的东西的度量。
+
+**威胁是锁，不是贼。** 密码系统死于运维，不死于密码分析 [[7]](#references)；对一个人来说，运维事故就是钥匙丢了、口令忘了。Saltzer 和 Schroeder 给出账本遵循的两条原则：心理可接受性，不好用的保护会被绕开；最小特权，钥匙只在工作需要时到进程手里 [[8]](#references)。于是一个值有三态，
+
+$$v \in \{\text{明文},\ \text{编码},\ \text{封存}\}, \qquad \operatorname{enc1}(v) = v \oplus \operatorname{SHA\text{-}256}(p \,\|\, d \,\|\, i)_{i=0,1,\dots},$$
+
+明文只在进程里；静态用仓库自己的 pepper $p$ 和门名 $d$ 编码，持有仓库的人都能解，防误泄露不防偷仓库，不是加密；配对时才封。两道门都管 Agent，不管主人：读门（`unlock` 要 `next` 项、范围和本机授权）与写门（`review` 只认主人的话立边界，读的时候同一套规则）。持有仓库的主人永远进得去：`ledger decode` 除了仓库什么都不要。
+
+认人是协议里唯一出现数字的地方：$a$ 个适用锚点、主人发言命中 $h$ 个，
+
+$$r = h / a \ge 0.30 \quad\text{且没有 done 项碰到边界} \Rightarrow \text{认出},$$
+
+锚点的 `words:` 填主人自己的词，Agent 从不写的那些（§5）。认人告诉 Agent 在跟谁说话，它不是锁。判每个 `next` 项的是 iLang 的判断层，基于模糊集隶属度 [[9]](#references)；记忆模块在正典里 [[10]](#references)。
 
 ---
 
@@ -244,6 +271,24 @@ A:无信号的冗长⇒浪费
 ---
 
 ## 6. 版本
+
+### 3.1 新在哪
+
+- **一个值三态。** 明文只在进程里；**静态编码**在 `env/keys.env`（`enc1:`，用 `env/pepper` 可逆，pepper 是 init 写一次、随仓库提交的 32 个随机字节；防误泄露，不是加密）；配对时才封。`ledger encode` 把 3.0 的明文行转过去，`ledger decode` 只凭仓库把所有值明文打给主人。
+- **授权记在本机。** 门在这台机器上开，要主人点一次头：`brain.py grant <DOOR>`、`--all`、`--write`，记在这个克隆的 git config，永不进仓库。顶门仍是一次性码；新机器第一次解锁点一次头就完。
+- **扫描改收割。** `memory/` `soul/` `handoff/` 里的钥匙形字符串是一条 WARN，不再拒提交；`ledger harvest` 把它变成一扇门（正文换成 `{{DOOR}}`，值编码存起来，`verify:none` 等主人说怎么验）；`migrate-cc` 顺手收割搬过来的东西。`log/` 一行不动。来源：Opus 5.5 与 4.6 对 3.0.0 的评审（2026-11-08），342 个迁移文件里 145 处命中拒了 136 次提交。
+- **证据也有来源。** `evidence add` 默认记 `owner_claimed`，带 `--transcript` 在主人发言里找到才记 `owner_verbatim`；`evidence confirm <q>` 是主人本人背书。两样都没有的，按 `agent_inferred` 读。
+- **同一份评审里的小事：** 不声明范围时 `unlock` 从交接单取范围，两边都没有就拒；克隆后钩子没开 `check` 会提醒（每台机器跑一次 `init .`）；`paste` 遮而不拒；自测不留目录。
+- **brain.py 2.1**，`tools/test_brain.py` 37 个场景。设计记录 MEM-FOREVER-3-1-THREE-STATES v1.0（2026-11-08），主人留在仓库外；正典 SECRETS 行在 ilang-spec 5.0.10 跟上。
+
+### 3.0 新在哪
+
+- **记忆是推导。** 钥匙推任务，任务出常数，中间逻辑是注释；读是从账本重新推一遍，写是追加一个常数或一条注释。
+- **账本** `env/ledger.env` 取代 vault：一行一扇门，带 `verify`、`last_verified`、`recover`、`scope`、`top`、`why`；`brain.py ledger verify` 跑每扇门的验证命令。顶门只认一次性码。
+- **配对时才封。** `brain.py pair` 把接手方范围内的行封给它的钥匙和主人的钥匙，带身份、范围、授权的声明；`unseal` 解一行。贴出去的脑子带账本不带值。
+- **动作就是配对。** 没有握手：`brain.py log` 把主人的发言原文留在 `log/`，`brain.py recognize` 拿它对灵魂的锚点；三成命中、没碰边界就是认出。
+- **每个块都有来源。** `by:` 写它靠谁的话站着；只有主人的话能立或保边界；一道审查门站在每个写手前面，读的时候同一套规则。`import` 灌进来的永远不硬化。
+- **brain.py 2.0**，一个文件，只用标准库；`tools/test_brain.py` 26 个场景；`migrate-2to3` 把 2.1 的钥匙包迁成账本行。
 
 ### 2.1 新在哪
 
@@ -332,3 +377,19 @@ MIT
 ---
 
 <sub>由 <a href="https://ilang.ai">iLang Protocol</a> 构建 · 人工智能的母语</sub>
+
+---
+
+## References
+
+1. Lamport, L. (1978). Time, clocks, and the ordering of events in a distributed system. *Communications of the ACM* 21(7), 558–565. <https://doi.org/10.1145/359545.359563>
+2. Kolmogorov, A. N. (1968). Three approaches to the quantitative definition of information. *International Journal of Computer Mathematics* 2(1–4), 157–168. <https://doi.org/10.1080/00207166808803030>
+3. Solomonoff, R. J. (1964). A formal theory of inductive inference, Part I. *Information and Control* 7(1), 1–22. <https://doi.org/10.1016/S0019-9958(64)90223-2>
+4. Chaitin, G. J. (1966). On the length of programs for computing finite binary sequences. *Journal of the ACM* 13(4), 547–569. <https://doi.org/10.1145/321356.321363>
+5. Li, M., Vitányi, P. (2008). *An Introduction to Kolmogorov Complexity and Its Applications*, 3rd ed. Springer. <https://doi.org/10.1007/978-0-387-49820-1>
+6. Shannon, C. E. (1948). A mathematical theory of communication. *Bell System Technical Journal* 27(3), 379–423. <https://doi.org/10.1002/j.1538-7305.1948.tb01338.x>
+7. Anderson, R. (1993). Why cryptosystems fail. *Proceedings of the 1st ACM Conference on Computer and Communications Security*, 215–227. <https://doi.org/10.1145/168588.168615>
+8. Saltzer, J. H., Schroeder, M. D. (1975). The protection of information in computer systems. *Proceedings of the IEEE* 63(9), 1278–1308. <https://doi.org/10.1109/PROC.1975.9939>
+9. Zadeh, L. A. (1965). Fuzzy sets. *Information and Control* 8(3), 338–353. <https://doi.org/10.1016/S0019-9958(65)90241-X>
+10. Zhu, L. Q. (2026). iLang Protocol Specification 5.0.9, Part I MODULE::MEMORY. Zenodo. <https://doi.org/10.5281/zenodo.24048531>
+
