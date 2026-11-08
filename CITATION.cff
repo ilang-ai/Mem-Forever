@@ -36,7 +36,7 @@ authors:
 repository-code: "https://github.com/ilang-ai/Mem-Forever"
 url: "https://github.com/ilang-ai/Mem-Forever"
 license: MIT
-version: "3.1.2"
+version: "3.2.0"
 date-released: "2026-11-08"
 keywords:
   - AI memory
