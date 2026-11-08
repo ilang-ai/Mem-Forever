@@ -32,7 +32,7 @@ against the current hand-off. `--overlay` lays the returned blocks over the base
 
 ## The ledger in the message
 
-Since 3.0 the message ends with the ledger: one `::STATE{@LEDGER…}` line and one row per door with its door, kind, verify command, how to get back in and the date it last opened, and **no value**. A chat AI with no tools cannot open a door, and this message leaves the private repository, so the values stay home. `--with-values` puts them back for the owner who means to hand the whole brain to a model that has a shell; the secret scan is skipped on that message and the tool says so.
+Since 3.0 the message ends with the ledger: one `::STATE{@LEDGER…}` line and one row per door with its door, kind, verify command, how to get back in and the date it last opened, and **no value**. A chat AI with no tools cannot open a door, and this message leaves the private repository, so the values stay home. `--with-values` puts them back for the owner who means to hand the whole brain to a model that has a shell; nothing is masked on that message and the tool says so. Since 3.1 a key-shaped string left anywhere in the message is masked to `{{UNHARVESTED <kind> <fingerprint>}}` instead of refusing the paste; `env/pepper`, `env/keys.env`, `log/` and `pair/` are never part of it.
 
 ## What was measured
 
