@@ -14,6 +14,13 @@ abstract: >-
   agent at it. Version 2.1 makes the README the engineering book: copy it into
   any agent and it can carry it out; the hand-off review accepts a partial
   write-back. Documentation in nine languages.
+  Version 3.0 starts from the keys: memory is a derivation, the keys derive
+  the tasks, the tasks yield constants, the logic between them is annotation.
+  A ledger of every door replaces the vault, plain in the private repository
+  and sealed only when pairing with the owner always a recipient; a key reaches
+  a model only when the work reaches its door; the owner is recognized by
+  trajectory, not by password; every block carries its source; one review gate
+  stands before every writer and the same rules apply when the brain is read.
 type: software
 authors:
   - given-names: "Long Quan"
@@ -23,8 +30,8 @@ authors:
 repository-code: "https://github.com/ilang-ai/Mem-Forever"
 url: "https://github.com/ilang-ai/Mem-Forever"
 license: MIT
-version: "2.1.0"
-date-released: "2026-11-05"
+version: "3.0.0"
+date-released: "2026-11-08"
 keywords:
   - AI memory
   - persistent memory
