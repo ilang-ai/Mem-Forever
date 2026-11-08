@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Behavior tests for brain.py 2.0 (Mem-Forever 3.0): ledger, unlock, one-time code, log, recognize, provenance,
-review, import, verify, instructions, paste, the push guard parser, the secret-scan exemptions.
+"""Behavior tests for brain.py 2.1 (Mem-Forever 3.1): ledger, unlock, grants, one-time code, encoded rest, harvest, log,
+recognize, provenance, evidence, review, import, verify, instructions, paste, the push guard parser.
 Standard library only. Run: python -X utf8 tools/test_brain.py
 Every test builds its own brain in a temporary directory; nothing touches the user's machine (install is dry-run only)."""
 import importlib.util
@@ -47,7 +47,16 @@ class BrainTests(unittest.TestCase):
         self.B = [sys.executable, "-X", "utf8", str(self.repo / "tools" / "brain.py")]
 
     def tearDown(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
+        def _rw(fn, path, exc):
+            try:
+                os.chmod(path, 0o700)
+                fn(path)
+            except OSError:
+                pass
+        for _ in range(3):
+            shutil.rmtree(self.tmp, onerror=_rw)
+            if not self.tmp.exists():
+                break
 
     def cli(self, *args):
         return run(self.B + list(args), self.repo)
@@ -71,18 +80,38 @@ class BrainTests(unittest.TestCase):
         r = self.cli("check")
         self.assertEqual(r.returncode, 0, r.stdout)
 
-    def test_check_exempts_env_and_log_from_the_secret_scan(self):
+    def test_check_exempts_env_and_log_and_warns_on_memory_keys(self):
         tok = "gh" + "p_" + "abcdefghijklmnopqrstuvwxyz0123456789"
-        self.write("env/keys.env", f"GH={tok}\n")
         self.write("log/2026-11-08.md", f"# 2026-11-08\n\n::EVENT{{@OWNER, at:10:00, kind:turn}}\nthe pass" + "word: Example12345 and {tok}\n\n")
         r = self.cli("check")
         self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn("key-shaped", r.stdout)
+        # 3.1: a key in memory text is a WARN with the harvest command, never a refused commit
         self.write("memory/leak.md", f"---\ntype: reference\nname: leak\ndescription: x\n---\n{tok}\n")
         r = self.cli("check")
-        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("1 key-shaped value(s) outside the ledger in memory/leak.md", r.stdout)
+        self.assertIn("ledger harvest", r.stdout)
+        # a plain row in keys.env is a WARN with the encode command
+        self.write("env/keys.env", f"GH={tok}\n")
+        r = self.cli("check")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("1 plain row(s) in env/keys.env", r.stdout)
 
     # ---- ledger
+    def grant_all(self):
+        self.assertEqual(self.cli("grant", "--write").returncode, 0)
+        self.assertEqual(self.cli("grant", "--all").returncode, 0)
+
+    def declare_scope(self, scope="fleet"):
+        cur = self.read("handoff/CURRENT.md")
+        if "::PROGRESS{scope:" not in cur:
+            cur = cur.replace("::PROGRESS{date:", f"::PROGRESS{{scope:{scope}|date:", 1)
+            self.write("handoff/CURRENT.md", cur)
+
     def add_rows(self):
+        self.grant_all()
+        self.declare_scope()
         r = self.cli("ledger", "add", "hk", "--door", "ssh root@203.0.113.5", "--kind", "ssh_password", "--value", "pw-Example-123",
                      "--verify", '"' + sys.executable + '" -c "import os,sys;sys.exit(0 if os.environ.get(\'HK\') and os.environ.get(\'HK\')==os.environ.get(\'LEDGER_VALUE\') else 1)"',
                      "--recover", "provider console", "--scope", "fleet", "--why", "hub")
@@ -93,7 +122,11 @@ class BrainTests(unittest.TestCase):
     def test_ledger_add_list_verify_and_stale(self):
         self.add_rows()
         keys = self.read("env/keys.env")
-        self.assertIn("HK=pw-Example-123", keys)
+        self.assertIn("HK=enc1:", keys)
+        self.assertNotIn("pw-Example-123", keys)
+        r = self.cli("ledger", "decode")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("HK=pw-Example-123", r.stdout)
         r = self.cli("ledger", "list")
         self.assertIn("HK", r.stdout)
         self.assertIn("stale   2", r.stdout)
@@ -109,6 +142,7 @@ class BrainTests(unittest.TestCase):
         self.assertIn("pw-Example-123", r.stdout)
 
     def test_ledger_verify_failure_exits_one(self):
+        self.cli("grant", "--write")
         self.cli("ledger", "add", "dead", "--door", "nowhere", "--kind", "token", "--value", "x", "--verify", '"' + sys.executable + '" -c "import sys;sys.exit(3)"', "--recover", "none")
         r = self.cli("ledger", "verify", "dead")
         self.assertEqual(r.returncode, 1)
@@ -231,14 +265,42 @@ class BrainTests(unittest.TestCase):
         self.assertIn("key:claimed|value:v|conf:tentative|by:owner_claimed", s)
         self.assertIn("key:deploy|value:hk|conf:tentative|by:agent_inferred", s)
 
-    def test_evidence_makes_owner_verbatim_valid(self):
+    def test_t11_evidence_without_transcript_is_claimed_until_the_owner_confirms(self):
         r = self.cli("evidence", "add", "该下判断就下判断", "--where", "chat")
+        self.assertIn("owner_claimed", r.stdout)
         q = re.search(r"q:([0-9a-f]{8})", r.stdout).group(1)
         self.assertEqual(q, brain.quote_q("该下判断就下判断"))
         self.write("soul/soul.md", "---\ntype: profile\nname: soul\ndescription: t\nstatus: stable\n---\n"
                    f"::BOUNDARY{{never:ask twice|scope:global|by:owner_verbatim|q:{q}}}\n")
         rc, out = quiet(brain.cmd_provenance, self.repo, "check", None, False)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("owner_verbatim_without_transcript", out)
+        # the owner confirms in person: the quote is backed and the boundary stands
+        r = self.cli("evidence", "confirm", q)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        rc, out = quiet(brain.cmd_provenance, self.repo, "check", None, False)
         self.assertEqual(rc, 0, out)
+        # without the confirmation, repair would have rewritten it to owner_claimed
+        self.write("soul/soul.md", "---\ntype: profile\nname: soul\ndescription: t\nstatus: stable\n---\n"
+                   f"::BOUNDARY{{never:ask thrice|scope:global|by:owner_verbatim|q:{brain.quote_q('别问三次')}}}\n")
+        self.cli("evidence", "add", "别问三次")
+        rc, out = quiet(brain.cmd_provenance, self.repo, "repair", "2026-11-08", False)
+        self.assertIn("by:owner_claimed", self.read("soul/soul.md"))
+
+    def test_t12_evidence_backed_by_a_transcript_is_verbatim(self):
+        t = self.tmp / "s.jsonl"
+        t.write_text('{"type":"user","message":{"role":"user","content":"该下判断就下判断"}}\n', encoding="utf-8")
+        r = self.cli("evidence", "add", "该下判断就下判断", "--transcript", str(t))
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("backed by the transcript", r.stdout)
+        q = re.search(r"q:([0-9a-f]{8})", r.stdout).group(1)
+        self.assertIn("by:owner_verbatim|src:transcript:", self.read("soul/evidence.md"))
+        self.write("soul/soul.md", "---\ntype: profile\nname: soul\ndescription: t\nstatus: stable\n---\n"
+                   f"::BOUNDARY{{never:ask twice|scope:global|by:owner_verbatim|q:{q}}}\n")
+        rc, out = quiet(brain.cmd_provenance, self.repo, "check", None, False)
+        self.assertEqual(rc, 0, out)
+        r = self.cli("evidence", "add", "这句不在转录里", "--transcript", str(t))
+        self.assertIn("owner_claimed", r.stdout)
 
     def test_transcript_adapter_reads_user_turns_only(self):
         t = self.tmp / "s.jsonl"
@@ -354,6 +416,7 @@ class BrainTests(unittest.TestCase):
 
     def test_paste_carries_the_ledger_without_values_by_default(self):
         fake = "sk" + "-not-real-looks-like-one-1234567890"
+        self.cli("grant", "--write")
         self.cli("ledger", "add", "api", "--door", "api.example.com", "--kind", "api_key", "--value", fake, "--verify", "none", "--recover", "dashboard")
         out = self.tmp / "p.md"
         rc, _ = quiet(brain.cmd_paste, self.repo, out, "en", False)
@@ -365,6 +428,188 @@ class BrainTests(unittest.TestCase):
         rc, _ = quiet(brain.cmd_paste, self.repo, out, "en", True)
         self.assertEqual(rc, 0)
         self.assertIn(fake, out.read_text(encoding="utf-8"))
+
+
+    # ---- 3.1 three states, grants, harvest
+    def test_t1_t2_encode_decode_roundtrip_and_missing_pepper(self):
+        pepper = brain.load_pepper(self.repo)
+        self.assertIsNotNone(pepper)
+        self.assertEqual(len(pepper), 32)
+        tok = brain.enc1_encode(pepper, "HK", "pw-Example-123 密码")
+        self.assertTrue(tok.startswith("enc1:"))
+        self.assertNotIn("Example", tok)
+        self.assertEqual(brain.enc1_decode(pepper, "HK", tok), "pw-Example-123 密码")
+        self.assertNotEqual(brain.enc1_decode(b"\x01" * 32, "HK", tok), "pw-Example-123 密码")
+        self.assertNotEqual(brain.enc1_encode(pepper, "HK", "same"), brain.enc1_encode(pepper, "OTHER", "same"))
+        self.write("env/keys.env", f"HK={tok}\n")
+        hexpepper = self.read("env/pepper").strip()
+        (self.repo / "env" / "pepper").unlink()
+        r = self.cli("ledger", "decode")
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertIn("env/pepper missing", r.stdout)
+        r = self.cli("check")
+        self.assertIn("env/pepper missing", r.stdout)
+        r = self.cli("ledger", "decode", "--pepper", hexpepper)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("HK=pw-Example-123 密码", r.stdout)
+
+    def test_t3_t4_unlock_needs_a_grant_on_this_machine(self):
+        self.add_rows()
+        cur = re.sub(r"next:<[^|]*>", "next:log in to hk", self.read("handoff/CURRENT.md"), count=1)
+        self.write("handoff/CURRENT.md", cur)
+        r = self.cli("grant", "--revoke", "--all")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        r = self.cli("unlock", "hk")
+        self.assertEqual(r.returncode, 3, r.stdout)
+        self.assertIn("no grant on this machine", r.stdout)
+        self.assertIn("grant HK", r.stdout)
+        r = self.cli("grant", "hk")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(run(["git", "config", "--bool", "brain.grant.HK"], self.repo).stdout.strip(), "true")
+        r = self.cli("unlock", "hk")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("value:pw-Example-123", r.stdout)
+        self.assertIn("grant:door", self.read(f"log/{brain._today()}.md"))
+        r = self.cli("grant", "--list")
+        self.assertIn("brain.grant.hk true", r.stdout.lower())
+        # grant --all never covers a top door
+        self.cli("grant", "--all")
+        r = self.cli("unlock", "bank")
+        self.assertEqual(r.returncode, 3)
+        self.assertIn("top door", r.stdout)
+        # the repository carries no grant
+        self.assertNotIn("brain.grant", self.read(".gitignore") + self.read("env/ledger.env"))
+        r = run(["git", "grep", "-l", "brain.grant", "HEAD", "--", "env"], self.repo)
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_t5_storing_a_key_needs_the_write_grant_once(self):
+        r = self.cli("ledger", "add", "api", "--door", "api.example.com", "--kind", "api_key", "--value", "v-Example-12345", "--recover", "dashboard")
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertIn("grant --write", r.stdout)
+        self.assertFalse((self.repo / "env" / "keys.env").exists())
+        self.cli("grant", "--write")
+        r = self.cli("ledger", "add", "api", "--door", "api.example.com", "--kind", "api_key", "--value", "v-Example-12345", "--recover", "dashboard")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("API=enc1:", self.read("env/keys.env"))
+        self.assertNotIn("v-Example-12345", self.read("env/keys.env"))
+
+    def test_t6_t7_harvest_turns_memory_keys_into_doors_and_leaves_the_log_alone(self):
+        tok = "gh" + "p_" + "abcdefghijklmnopqrstuvwxyz0123456789"
+        self.write("memory/leak.md", f"---\ntype: reference\nname: leak\ndescription: x\n---\nthe token is {tok} and again {tok}\n")
+        self.write("log/2026-11-08.md", f"# 2026-11-08\n\n::EVENT{{@OWNER, at:10:00, kind:turn}}\n{tok}\n\n")
+        r = self.cli("check")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("1 key-shaped value(s) outside the ledger", r.stdout)
+        r = self.cli("ledger", "harvest")
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.cli("grant", "--write")
+        r = self.cli("ledger", "harvest")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("GITHUB_TOKEN_LEAK", r.stdout)
+        mem = self.read("memory/leak.md")
+        self.assertNotIn(tok, mem)
+        self.assertEqual(mem.count("{{GITHUB_TOKEN_LEAK}}"), 2)
+        self.assertIn(tok, self.read("log/2026-11-08.md"))
+        keys = self.read("env/keys.env")
+        self.assertIn("GITHUB_TOKEN_LEAK=enc1:", keys)
+        self.assertNotIn(tok, keys)
+        self.assertRegex(self.read("env/ledger.env"), r"@GITHUB_TOKEN_LEAK, door:github_token found in memory/leak.md, kind:github_token, ref:GITHUB_TOKEN_LEAK, verify:none")
+        r = self.cli("check")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("0 errors, 0 warnings", r.stdout)
+        r = self.cli("ledger", "reveal", "GITHUB_TOKEN_LEAK")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(r.stdout.strip(), tok)
+        r = self.cli("ledger", "verify", "all")
+        self.assertIn("SKIP    GITHUB_TOKEN_LEAK", r.stdout)
+
+    def test_t8_t9_paste_masks_what_was_not_harvested_and_never_carries_the_pepper(self):
+        fake = "sk" + "-not-real-looks-like-one-1234567890"
+        cur = self.read("handoff/CURRENT.md").replace("value:<what is stuck and who decides>", f"value:the api key is {fake}", 1)
+        self.write("handoff/CURRENT.md", cur)
+        out = self.tmp / "p.md"
+        rc, _ = quiet(brain.cmd_paste, self.repo, out, "en", False)
+        self.assertEqual(rc, 0)
+        s = out.read_text(encoding="utf-8")
+        self.assertNotIn(fake, s)
+        self.assertIn("{{UNHARVESTED openai_key ", s)
+        self.assertNotIn(self.read("env/pepper").strip(), s)
+        rc, _ = quiet(brain.cmd_paste, self.repo, out, "en", True)
+        self.assertIn(fake, out.read_text(encoding="utf-8"))
+
+    def test_t10_migrate_cc_harvests_the_copied_memory(self):
+        src = self.tmp / "cc"
+        src.mkdir()
+        gh = "gh" + "p_" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        sk = "sk" + "-proj-abcdefghijklmnop1234567890"
+        aws = "AK" + "IA" + "ABCDEFGHIJKLMNOP"
+        (src / "a.md").write_text(f"---\ntype: reference\nname: a\ndescription: a\n---\n{gh}\n{sk}\n", encoding="utf-8")
+        (src / "b.md").write_text(f"---\ntype: reference\nname: b\ndescription: b\n---\nkey {aws} here\n", encoding="utf-8")
+        rc, out = quiet(brain.cmd_migrate_cc, self.repo, src, False)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("harvest: skipped", out)
+        self.cli("grant", "--write")
+        rc, out = quiet(brain.cmd_migrate_cc, self.repo, src, True)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("3 door(s) created", out)
+        a = self.read("memory/a.md")
+        self.assertIn("{{GITHUB_TOKEN_A}}", a)
+        self.assertIn("{{OPENAI_KEY_A}}", a)
+        self.assertIn("{{AWS_KEY_B}}", self.read("memory/b.md"))
+        for tok in (gh, sk, aws):
+            self.assertNotIn(tok, a + self.read("memory/b.md") + self.read("env/keys.env"))
+        r = self.cli("check")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(self.cli("ledger", "reveal", "AWS_KEY_B").stdout.strip(), aws)
+
+    def test_t13_unlock_scope_comes_from_the_handoff_when_not_declared(self):
+        self.add_rows()
+        cur = re.sub(r"next:<[^|]*>", "next:log in to hk", self.read("handoff/CURRENT.md"), count=1)
+        self.write("handoff/CURRENT.md", cur)
+        r = self.cli("unlock", "hk")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.write("handoff/CURRENT.md", self.read("handoff/CURRENT.md").replace("::PROGRESS{scope:fleet|", "::PROGRESS{", 1))
+        r = self.cli("unlock", "hk")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("none was declared", r.stdout)
+        self.write("handoff/CURRENT.md", self.read("handoff/CURRENT.md").replace("::PROGRESS{date:", "::PROGRESS{scope:writing|date:", 1))
+        r = self.cli("unlock", "hk")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("not inside the declared scope", r.stdout)
+
+    def test_t14_check_warns_when_the_hooks_are_off_on_this_clone(self):
+        run(["git", "config", "--unset", "core.hooksPath"], self.repo)
+        r = self.cli("check")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("hooks are off on this clone", r.stdout)
+        rc, out = quiet(brain.cmd_init, self.repo, "test", False)
+        self.assertEqual(rc, 0, out)
+        r = self.cli("check")
+        self.assertNotIn("hooks are off", r.stdout)
+
+    def test_t15_ledger_encode_is_reversible_and_idempotent(self):
+        self.write("env/keys.env", "# keys\nHK=pw-Example-123\nAPI=\"quoted-Value-1\"\n")
+        r = self.cli("ledger", "encode")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("2 row(s) encoded", r.stdout)
+        self.assertTrue((self.repo / "env" / "keys.env.bak").is_file())
+        keys = self.read("env/keys.env")
+        self.assertIn("HK=enc1:", keys)
+        self.assertIn("API=enc1:", keys)
+        self.assertNotIn("pw-Example-123", keys)
+        r = self.cli("ledger", "decode")
+        self.assertIn("HK=pw-Example-123", r.stdout)
+        self.assertIn("API=quoted-Value-1", r.stdout)
+        r = self.cli("ledger", "encode")
+        self.assertIn("0 row(s) encoded", r.stdout)
+        self.assertEqual(self.read("env/keys.env"), keys)
+
+    def test_t16_init_writes_the_pepper_once(self):
+        hexpepper = self.read("env/pepper").strip()
+        self.assertEqual(len(hexpepper), 64)
+        rc, out = quiet(brain.cmd_init, self.repo, "test", False)
+        self.assertEqual(self.read("env/pepper").strip(), hexpepper)
+        self.assertIn("env/pepper", run(["git", "ls-files", "env/pepper"], self.repo).stdout)
 
     def test_remote_parser(self):
         self.assertEqual(brain.parse_remote("https://github.com/ilang-ai/Mem-Forever.git"), ("github.com", "ilang-ai", "Mem-Forever"))
