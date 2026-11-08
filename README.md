@@ -267,11 +267,11 @@ A brain, or a change to this template, is in order when all of these hold:
 
 Three results carry this design. Each is older than the design and has a DOI; the numbers behind them are in §5.
 
-**One true state, no second copy.** An agent memory that stores facts about code keeps a second copy of what the repository already holds, and the two drift: HEAD moves, the copy does not, and the agent acts on the stale one. Mem-Forever keeps no code memory. With $S$ the state the repositories and machines hold at HEAD and $M$ the brain,
+**One true state, no second copy.** An agent with a shell or a tool protocol reaches the live state in one call: HEAD, a database row, a probe on a server, an API. A memory that copies that state into itself keeps a second copy, and the two drift: the world moves, the copy does not, and the agent acts on the stale one, then searches the stale copy by similarity and calls the result recall. Mem-Forever keeps none of it. With $S$ the state any tool can fetch now and $M$ the brain,
 
-$$M \;=\; R \,\cup\, K \,\cup\, H, \qquad M \cap \operatorname{derivable}(S) = \varnothing,$$
+$$M \;=\; R \,\cup\, K \,\cup\, H, \qquad M \cap \operatorname{live}(S) = \varnothing,$$
 
-where $R$ is the reasoning HEAD does not hold (why a path was chosen, what was rejected, what must never be done here), $K$ the ledger of doors and $H$ the hand-off. Every fact has one copy, so there is nothing to invalidate; order comes from the git record, the way Lamport ordered events by the record rather than by a clock [[1]](#references).
+where $K$ is the ledger of doors (which keys open which door, and the command that proves it still opens), $H$ the hand-off (what is being done now) and $R$ the reasoning no live query returns (why a path was chosen, what was rejected, what must never be done here). Those three are the only things the live state cannot give back; everything else is fetched when the door is open. Every fact has one copy, so there is nothing to invalidate; order comes from the git record, the way Lamport ordered events by the record rather than by a clock [[1]](#references).
 
 **The brain is a generator, not a snapshot.** A memory that stores what the agent saw grows with the transcript; a memory that stores the derivation grows with what cannot be derived. Kolmogorov, Solomonoff and Chaitin defined the information in an object as the length of the shortest program that produces it [[2]](#references) [[3]](#references) [[4]](#references) [[5]](#references). The brain is that program,
 
