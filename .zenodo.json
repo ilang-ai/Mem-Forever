@@ -1,7 +1,7 @@
 {
   "title": "Mem-Forever: a Git-native persistent memory layer for AI agents",
-  "description": "<p>Every AI tool forgets a user when the session closes. Mem-Forever keeps the memory in the user's own Git repository as small Markdown files with OKF frontmatter and iLang declarations that a person can read and a machine can parse, so preferences, decisions and lessons survive across sessions, tools and models. Version 2.0 turns the repository into a portable agent brain: a bootloader any tool reads first, a hand-off note that says what was done and what comes next, one file per memory, and an age-encrypted vault for keys, with a single-file Python tool to check, migrate, install, build the message a chat AI with no tools needs, and review a hand-off another model wrote before it is merged. It needs no server and no account: create the repository from the template and point the agent at it. Version 2.1 makes the README the engineering book: copy it into any agent and it can carry it out; the hand-off review accepts a partial write-back. Documentation in nine languages.</p><p>Version 3.0 starts from the keys: memory is a derivation, the keys derive the tasks, the tasks yield constants, the logic between them is annotation. A ledger of every door replaces the vault, plain in the private repository and sealed only when pairing with the owner always a recipient; a key reaches a model only when the work reaches its door; the owner is recognized by trajectory, not by password; every block carries its source (by:); one review gate stands before every writer and the same rules apply when the brain is read.</p>",
-  "version": "3.0.0",
+  "description": "<p>Every AI tool forgets a user when the session closes. Mem-Forever keeps the memory in the user's own Git repository as small Markdown files with OKF frontmatter and iLang declarations that a person can read and a machine can parse, so preferences, decisions and lessons survive across sessions, tools and models. Version 2.0 turns the repository into a portable agent brain: a bootloader any tool reads first, a hand-off note that says what was done and what comes next, one file per memory, and an age-encrypted vault for keys, with a single-file Python tool to check, migrate, install, build the message a chat AI with no tools needs, and review a hand-off another model wrote before it is merged. It needs no server and no account: create the repository from the template and point the agent at it. Version 2.1 makes the README the engineering book: copy it into any agent and it can carry it out; the hand-off review accepts a partial write-back. Documentation in nine languages.</p><p>Version 3.0 starts from the keys: memory is a derivation, the keys derive the tasks, the tasks yield constants, the logic between them is annotation. A ledger of every door replaces the vault, plain in the private repository and sealed only when pairing with the owner always a recipient; a key reaches a model only when the work reaches its door; the owner is recognized by trajectory, not by password; every block carries its source (by:); one review gate stands before every writer and the same rules apply when the brain is read.</p><p>Version 3.1 gives a key value three states: plain only inside a process, encoded at rest in the private repository with the repository's own pepper (reversible, not encryption), sealed only when pairing. A door opens on a machine only after the owner's grant, recorded in that machine's git config and never in the repository; top doors keep the one-time code. The secret scan harvests key-shaped text into ledger rows instead of refusing commits, so a memory migrated from Claude Code arrives with its doors in the ledger; evidence carries its own backing (a transcript or the owner's confirmation) and an unbacked claim has the authority of an inference. The README states the three results the design rests on, with their references: one true state and no second copy (Lamport 1978), the brain as the shortest program that regenerates the memory (Kolmogorov 1968, Solomonoff 1964, Chaitin 1966), and a threat model of self-lockout rather than theft (Anderson 1993; Saltzer and Schroeder 1975).</p>",
+  "version": "3.1.0",
   "upload_type": "software",
   "license": "MIT",
   "access_right": "open",
@@ -47,10 +47,80 @@
       "relation": "references",
       "resource_type": "software",
       "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.24048531",
+      "relation": "references",
+      "resource_type": "software",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1145/359545.359563",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1080/00207166808803030",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1016/S0019-9958(64)90223-2",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1145/321356.321363",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1007/978-0-387-49820-1",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1002/j.1538-7305.1948.tb01338.x",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1145/168588.168615",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1109/PROC.1975.9939",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1016/S0019-9958(65)90241-X",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
     }
   ],
   "references": [
+    "Zhu, L. Q. (2026). iLang Protocol Specification, release 5.0.9: MODULE::MEMORY, WHERE and SECRETS amended for Mem-Forever 3.0. https://doi.org/10.5281/zenodo.24048531",
     "Zhu, L. Q. (2026). iLang Protocol Specification, release 5.0.5: MODULE::MEMORY names Mem-Forever as the reference template. https://doi.org/10.5281/zenodo.23990334",
-    "Zhu, L. Q. (2026). iLang Protocol Specification (concept record). https://doi.org/10.5281/zenodo.21821452"
+    "Zhu, L. Q. (2026). iLang Protocol Specification (concept record). https://doi.org/10.5281/zenodo.21821452",
+    "Lamport, L. (1978). Time, clocks, and the ordering of events in a distributed system. Communications of the ACM 21(7), 558-565. https://doi.org/10.1145/359545.359563",
+    "Kolmogorov, A. N. (1968). Three approaches to the quantitative definition of information. International Journal of Computer Mathematics 2(1-4), 157-168. https://doi.org/10.1080/00207166808803030",
+    "Solomonoff, R. J. (1964). A formal theory of inductive inference, Part I. Information and Control 7(1), 1-22. https://doi.org/10.1016/S0019-9958(64)90223-2",
+    "Chaitin, G. J. (1966). On the length of programs for computing finite binary sequences. Journal of the ACM 13(4), 547-569. https://doi.org/10.1145/321356.321363",
+    "Li, M., Vitanyi, P. (2008). An Introduction to Kolmogorov Complexity and Its Applications, 3rd ed. Springer. https://doi.org/10.1007/978-0-387-49820-1",
+    "Shannon, C. E. (1948). A mathematical theory of communication. Bell System Technical Journal 27(3), 379-423. https://doi.org/10.1002/j.1538-7305.1948.tb01338.x",
+    "Anderson, R. (1993). Why cryptosystems fail. Proceedings of the 1st ACM Conference on Computer and Communications Security, 215-227. https://doi.org/10.1145/168588.168615",
+    "Saltzer, J. H., Schroeder, M. D. (1975). The protection of information in computer systems. Proceedings of the IEEE 63(9), 1278-1308. https://doi.org/10.1109/PROC.1975.9939",
+    "Zadeh, L. A. (1965). Fuzzy sets. Information and Control 8(3), 338-353. https://doi.org/10.1016/S0019-9958(65)90241-X"
   ]
 }

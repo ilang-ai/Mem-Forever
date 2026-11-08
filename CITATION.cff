@@ -21,6 +21,12 @@ abstract: >-
   a model only when the work reaches its door; the owner is recognized by
   trajectory, not by password; every block carries its source; one review gate
   stands before every writer and the same rules apply when the brain is read.
+  Version 3.1 gives a key value three states: plain only inside a process,
+  encoded at rest in the private repository with the repository's own pepper
+  (reversible, not encryption), sealed only when pairing; a door opens on a
+  machine only after the owner's grant, recorded in that machine's git config
+  and never in the repository; the secret scan harvests key-shaped text into
+  ledger rows instead of refusing commits; evidence carries its own backing.
 type: software
 authors:
   - given-names: "Long Quan"
@@ -30,7 +36,7 @@ authors:
 repository-code: "https://github.com/ilang-ai/Mem-Forever"
 url: "https://github.com/ilang-ai/Mem-Forever"
 license: MIT
-version: "3.0.0"
+version: "3.1.0"
 date-released: "2026-11-08"
 keywords:
   - AI memory
@@ -43,6 +49,13 @@ keywords:
   - OKF
   - age encryption
 references:
+  - type: software
+    title: "iLang Protocol Specification, release 5.0.9 (MODULE::MEMORY, WHERE and SECRETS amended for Mem-Forever 3.0)"
+    authors:
+      - family-names: "Zhu"
+        given-names: "Long Quan"
+    year: 2026
+    doi: "10.5281/zenodo.24048531"
   - type: software
     title: "iLang Protocol Specification, release 5.0.5 (MODULE::MEMORY names Mem-Forever as the reference template)"
     authors:
@@ -57,3 +70,81 @@ references:
         given-names: "Long Quan"
     year: 2026
     doi: "10.5281/zenodo.21821452"
+  - type: article
+    title: "Time, clocks, and the ordering of events in a distributed system"
+    authors:
+      - family-names: "Lamport"
+        given-names: "Leslie"
+    year: 1978
+    journal: "Communications of the ACM"
+    doi: "10.1145/359545.359563"
+  - type: article
+    title: "Three approaches to the quantitative definition of information"
+    authors:
+      - family-names: "Kolmogorov"
+        given-names: "Andrey N."
+    year: 1968
+    journal: "International Journal of Computer Mathematics"
+    doi: "10.1080/00207166808803030"
+  - type: article
+    title: "A formal theory of inductive inference, Part I"
+    authors:
+      - family-names: "Solomonoff"
+        given-names: "Ray J."
+    year: 1964
+    journal: "Information and Control"
+    doi: "10.1016/S0019-9958(64)90223-2"
+  - type: article
+    title: "On the length of programs for computing finite binary sequences"
+    authors:
+      - family-names: "Chaitin"
+        given-names: "Gregory J."
+    year: 1966
+    journal: "Journal of the ACM"
+    doi: "10.1145/321356.321363"
+  - type: book
+    title: "An Introduction to Kolmogorov Complexity and Its Applications"
+    authors:
+      - family-names: "Li"
+        given-names: "Ming"
+      - family-names: "Vitányi"
+        given-names: "Paul"
+    year: 2008
+    publisher:
+      name: "Springer"
+    doi: "10.1007/978-0-387-49820-1"
+  - type: article
+    title: "A mathematical theory of communication"
+    authors:
+      - family-names: "Shannon"
+        given-names: "Claude E."
+    year: 1948
+    journal: "Bell System Technical Journal"
+    doi: "10.1002/j.1538-7305.1948.tb01338.x"
+  - type: conference-paper
+    title: "Why cryptosystems fail"
+    authors:
+      - family-names: "Anderson"
+        given-names: "Ross"
+    year: 1993
+    conference:
+      name: "1st ACM Conference on Computer and Communications Security"
+    doi: "10.1145/168588.168615"
+  - type: article
+    title: "The protection of information in computer systems"
+    authors:
+      - family-names: "Saltzer"
+        given-names: "Jerome H."
+      - family-names: "Schroeder"
+        given-names: "Michael D."
+    year: 1975
+    journal: "Proceedings of the IEEE"
+    doi: "10.1109/PROC.1975.9939"
+  - type: article
+    title: "Fuzzy sets"
+    authors:
+      - family-names: "Zadeh"
+        given-names: "Lotfi A."
+    year: 1965
+    journal: "Information and Control"
+    doi: "10.1016/S0019-9958(65)90241-X"
