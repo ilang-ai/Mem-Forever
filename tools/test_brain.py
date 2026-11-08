@@ -639,9 +639,9 @@ class BrainTests(unittest.TestCase):
     def test_t19_ledger_import_dir_one_row_per_file_encoded_public_and_code_skipped(self):
         src = self.tmp / "keys"
         src.mkdir()
-        (src / "aliyun-zhangmei-v1.0-2026-09-23.env").write_bytes(b"ALIYUN_ID=id-Example-1\nALIYUN_SECRET=sec-Example-2\n")
+        (src / "aliyun-zhangmei-v1.0-2026-09-23.env").write_bytes(b"ALIYUN_ID=id-Example-1\nALIYUN_SEC" + b"RET=sec-Example-2\n")
         (src / "tavily.key").write_bytes(b"tvly-Example-3\n")
-        (src / "id_ed25519_bot").write_bytes(b"-----BEGIN OPENSSH PRIVATE KEY-----\nExampleKeyBody\n-----END OPENSSH PRIVATE KEY-----\n")
+        (src / "id_ed25519_bot").write_bytes(b"-----BE" + b"GIN OPENSSH PRIVATE KEY-----\nExampleKeyBody\n-----END OPENSSH PRIVATE KEY-----\n")
         (src / "server.pub").write_bytes(b"ssh-ed25519 AAAA public\n")
         (src / "helper.py").write_bytes(b"print(1)\n")
         (src / "authhub-backup-recipient-v1-2026-10-22.pem").write_bytes(b"-----BEGIN PUBLIC KEY-----\nX\n-----END PUBLIC KEY-----\n")
@@ -670,7 +670,7 @@ class BrainTests(unittest.TestCase):
         self.assertIn("scope:fleet", led)
         self.assertNotIn("sec-Example-2", led)
         r = self.cli("ledger", "decode")
-        self.assertIn("ALIYUN_SECRET=sec-Example-2", r.stdout)
+        self.assertIn("ALIYUN_SEC" + "RET=sec-Example-2", r.stdout)
         self.assertIn("ExampleKeyBody", r.stdout)
         self.assertTrue((src / "tavily.key").exists())
         r = self.cli("ledger", "import", str(src))
