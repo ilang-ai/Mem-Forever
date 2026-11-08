@@ -1,7 +1,7 @@
 {
   "name": "mem-forever",
-  "version": "2.1.0",
-  "description": "Every AI tool forgets you. This one doesn't. Ever. Your Git repo becomes a portable agent brain: profile, one file per memory, a hand-off note that says where you stopped, an encrypted vault for keys. Survives every session, every tool, every migration.",
+  "version": "3.0.0",
+  "description": "Every AI tool forgets you. This one doesn't. Ever. Your Git repo becomes a portable agent brain: profile, one file per memory, a hand-off note that says where you stopped, a ledger of the keys that opens every door the brain can enter. Survives every session, every tool, every migration.",
   "author": {
     "name": "iLang Protocol",
     "url": "https://github.com/ilang-ai/Mem-Forever"
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "mem-forever active. Read handoff/CURRENT.md first and tell the user in two sentences what was done, what is next and what is unverified; if its status is open, claim it. Check soul/, memory/, handoff/ and log.md for uncommitted changes from a previous session; if found, commit and push immediately. Then read soul/soul.md, soul/agent.md and the index memory/MEMORY.md; open files under memory/ only as the task needs them. Judge each next item before acting: a boundary conflict stops, missing evidence asks, the owner's call defers; a recap or hand-off request authorizes nothing. If soul/soul.md has status: template, run onboarding: ask ONE question at a time, casual tone, cover role + work style + preferences. Never say 'DNA', 'gene', 'mutation', 'decay'. Say 'saved some notes' or 'I remember from last time'.",
+            "prompt": "mem-forever active. Run python -X utf8 tools/brain.py ledger verify first; a key enters context only when a next item names its door (brain.py unlock). Read handoff/CURRENT.md and tell the user in two sentences what was done, what is next and what is unverified; if its status is open, claim it. Check soul/, memory/, handoff/ and log.md for uncommitted changes from a previous session; if found, commit and push immediately. Then read soul/soul.md, soul/agent.md and the index memory/MEMORY.md; open files under memory/ only as the task needs them. Judge each next item before acting: a boundary conflict stops, missing evidence asks, the owner's call defers; a recap or hand-off request authorizes nothing. If soul/soul.md has status: template, run onboarding: ask ONE question at a time, casual tone, cover role + work style + preferences. Never say 'DNA', 'gene', 'mutation', 'decay'. Say 'saved some notes' or 'I remember from last time'.",
             "timeout": 15
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Session ending. Review this session for decisions, lessons, mistakes fixed, facts discovered. Save each as its own file under memory/ with a frontmatter that has type (user, feedback, project or reference), name and description, and add one line to memory/MEMORY.md. Update ::PROGRESS{date|done|next|unverified} in handoff/CURRENT.md; an item enters done only with evidence, every key present, none where there is no material. Update soul/soul.md only for repeated patterns (3x+) or explicit rejections. Never write a secret value; write [REDACTED kind fingerprint] and keep the value for the vault. Commit and push now.",
+            "prompt": "Session ending. Review this session for decisions, lessons, mistakes fixed, facts discovered. Save each as its own file under memory/ with a frontmatter that has type (user, feedback, project or reference), name and description, and add one line to memory/MEMORY.md. Update ::PROGRESS{date|done|next|unverified} in handoff/CURRENT.md; an item enters done only with evidence, every key present, none where there is no material. Update soul/soul.md only for repeated patterns (3x+) or explicit rejections. Never write a key value into memory text; a key is a ledger row (brain.py ledger add). Every block says by: whose words it rests on; the owner's words go to log/ verbatim (brain.py log owner). Commit and push now.",
             "timeout": 30
           }
         ]
