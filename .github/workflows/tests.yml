@@ -1,0 +1,27 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: brain.py check on the template
+        run: python -X utf8 tools/brain.py check
+      - name: the five instruction files mirror the skill body
+        run: python -X utf8 tools/brain.py instructions check
+      - name: behavior tests (ledger, unlock, recognize, provenance, review, import, verify, paste)
+        run: python -X utf8 tools/test_brain.py
+      - name: hook scripts parse
+        run: |
+          sh -n tools/hooks/pre-commit
+          sh -n tools/hooks/pre-push
