@@ -1,7 +1,7 @@
 ---
 name: mem-forever
 description: "Every AI tool forgets you. This one doesn't. Ever. One Git repo is your agent brain: profile, one file per memory, a hand-off note that says where you stopped, and a ledger of the keys that opens every door the brain can enter. Any tool that reads files can use it; a chat AI with no tools gets it pasted. Use this skill at session start to load the brain, at every milestone to save, and before merging a hand-off another model wrote."
-version: 3.0.0
+version: 3.1.0
 author: ilang-ai
 license: MIT
 metadata:
@@ -12,7 +12,7 @@ metadata:
 
 # mem-forever
 
-::GENE{mem-forever|v:3.0|spec:ilang-v5.0}
+::GENE{mem-forever|v:3.1|spec:ilang-v5.0}
   T:this_repo_is_user_memory
   T:verify_the_ledger_before_the_handoff
   T:read_handoff_first
@@ -27,6 +27,7 @@ metadata:
   T:commit_push_immediately_after_every_update
   T:check_unsaved_changes_on_startup
   T:keys_live_in_the_ledger_never_in_memory_text
+  T:keys_rest_encoded_never_plain_never_sealed
   T:a_key_enters_context_only_when_a_next_item_names_its_door
   T:every_block_says_by_whose_words_it_rests_on
   T:log_the_owner_turns_verbatim
@@ -41,6 +42,7 @@ metadata:
   A:unlock_a_top_door_from_the_record⇒forbidden_only_a_code_the_owner_issues
   A:boundary_or_antipattern_without_owner_words⇒read_as_advice_and_rewritten
   A:seal_the_ledger_at_rest⇒self_lockout
+  A:unlock_without_a_grant_on_this_machine⇒refused_ask_the_owner_once
 
 1.0 kept one long conversation going. 2.0 keeps the memory itself: the conversation can end, the brain stays, and the next session, in any tool, picks up where this one stopped. 2.1 adds the agent's own soul file and a review that accepts a partial write-back. 3.0 starts from the keys: memory is a derivation, the keys derive the tasks, the tasks yield constants, the logic between them is annotation. A ledger of every door, a key that arrives with the task, the owner recognized by trajectory, a source on every block, one gate for every writer.
 
@@ -54,7 +56,9 @@ soul/dna.md           ← optional: Imprint's working-style profile
 soul/agent.md         ← the agent's own soul: a persona the owner gave it, and what it learned here
 memory/MEMORY.md      ← index, one line per memory file
 memory/*.md           ← one memory per file, YAML frontmatter with `type`
-env/ledger.env        ← the ledger: one row per door; keys live here, plain, in this private repository (docs/LEDGER.md)
+env/ledger.env        ← the ledger: one row per door (docs/LEDGER.md)
+env/keys.env          ← the values, encoded at rest (enc1), reversible with env/pepper and brain.py; not encryption
+env/pepper            ← 32 random bytes, written once by init, committed: the encoded rows need nothing else
 log/YYYY-MM-DD.md     ← the owner's turns verbatim and the agent's decisions, one file per day; recognition reads them
 soul/evidence.md      ← the owner's words, verbatim, that soul blocks cite with `q:`
 pair/                 ← rows sealed for a receiver that does not hold the repository
@@ -195,9 +199,9 @@ Grammar success is not truth; the key count is only a completeness check. Eviden
 
 ## Ledger and unlock
 
-`env/ledger.env` is one `::STATE{@name, door, kind, ref or value, verify, last_verified, recover, scope, top, why}` row per door the brain can open. Keys live there, plain, because the repository is private and a key is replaceable while a lockout is not. `brain.py ledger add` writes a row, `ledger verify` runs each row's command and records the date, `ledger list` names the stale ones.
+`env/ledger.env` is one `::STATE{@name, door, kind, ref or value, verify, last_verified, recover, scope, top, grant, why}` row per door the brain can open. A value has three states: plain only inside a process, encoded at rest in `env/keys.env` (`enc1:`, reversible with `env/pepper` and `brain.py`; obfuscation against accidental exposure, not encryption, because the repository is private and a key is replaceable while a lockout is not), sealed only when pairing. `brain.py ledger add` writes a row and encodes the value, `ledger verify` runs each row's command and records the date, `ledger list` names the stale ones, `ledger decode` prints everything plain for the owner and needs nothing but the repository, `ledger harvest` turns key-shaped text under `memory/` `soul/` `handoff/` into rows and `{{DOOR}}` tokens (`ledger reveal` shows a token's value); `log/` is never touched.
 
-A key reaches your context only through `brain.py unlock <name>`: it prints the row with its value when a `next` item in the hand-off names the door and the row's scope lies inside the scope you declared. Otherwise the item stays in `next` with the reason. A top door (`root`, `sudo`, `payment`, `account_security`, `recovery_code`, `registrar`, `dns`, `age_identity`) never unlocks from the record: the owner issues a one-time code in person (`brain.py otp issue <name>`), you use it once. Every unlock is logged.
+A key reaches your context only through `brain.py unlock <name>`: it prints the row with its value when a `next` item in the hand-off names the door, the row's scope lies inside the declared scope (`--scope`, or `scope:` on the `::PROGRESS{}` block), and this machine holds the owner's grant. A grant is git config of the machine, never a file of the repository: the owner says yes once, `brain.py grant <name>` or `grant --all` records it, and from then on the door opens here; a new machine costs one nod at the first unlock. Storing a new key (`ledger add --value`, `ledger harvest`, `migrate-cc`) needs `grant --write` once per machine. Otherwise the item stays in `next` with the reason and the exact command. A top door (`root`, `sudo`, `payment`, `account_security`, `recovery_code`, `registrar`, `dns`, `age_identity`) never unlocks from the record: the owner issues a one-time code in person (`brain.py otp issue <name>`), you use it once. Every unlock is logged.
 
 Nothing is sealed at rest. `brain.py pair <key> --scope …` seals the rows inside a scope for a receiver without repository access, to the receiver's key and to the owner's, and writes a declaration of identity, scope and authorization; top doors are never sealed. The pasted brain carries the ledger without values; `--with-values` is the owner's choice.
 
@@ -205,12 +209,12 @@ Nothing is sealed at rest. `brain.py pair <key> --scope …` seals the rows insi
 
 `brain.py log owner "<the owner's words>"` appends the turn verbatim to `log/<date>.md`; `brain.py log agent "<your decision block>"` appends yours. Never tool output. The log is exempt from the secret scan; the push guard keeps the repository private.
 
-Recognition reads the person, not you. `brain.py recognize` takes the `T:` and `A:` lines of `soul/soul.md` that rest on the owner's words (`by:owner_*` or `by:legacy`), each with `words:` the owner actually uses, and matches them against the owner's turns in the window. An anchor is applicable when its words occur; it hits when the turn matches the trait or avoids the anti-pattern. Thirty percent of the applicable anchors hit and no `done` item touching a boundary: recognized. The threshold is low on purpose; a person is not self-consistent, and a high threshold locks the owner out first. Recognition proves that the work is being continued, not who holds the repository.
+Recognition reads the person, not you. `brain.py recognize` takes the `T:` and `A:` lines of `soul/soul.md` that rest on the owner's words (`by:owner_*` or `by:legacy`), each with `words:` the owner actually uses, and matches them against the owner's turns in the window. An anchor is applicable when its words occur; it hits when the turn matches the trait or avoids the anti-pattern. Thirty percent of the applicable anchors hit and no `done` item touching a boundary: recognized. The threshold is low on purpose; a person is not self-consistent, and a high threshold locks the owner out first. Recognition proves that the work is being continued, not who holds the repository; `unlock` never reads it. The `words:` of an anchor are the owner's own words, the ones you never write yourself, not topic words: topic words recognize whoever talks about the same work.
 
 ## Provenance (by:)
 
-- `by:owner_verbatim|q:<key>` rests on the owner's words; `brain.py evidence add "<words>"` records them in `soul/evidence.md` and prints `q`. `by:owner_confirmed` is wording the owner approved. `by:agent_inferred` is yours. `by:imported` came from another brain. `by:legacy` was there before 3.0.
-- Only `owner_verbatim` or `owner_confirmed` may create or keep a `::BOUNDARY{}` or an `A:` line. A boundary or an `A:` line without owner words is read as advice and rewritten as a tentative `::FACT{}` by `brain.py provenance repair`; a `by:owner_verbatim` claim whose `q` matches no evidence becomes `owner_claimed`, with the authority of `agent_inferred`.
+- `by:owner_verbatim|q:<key>` rests on the owner's words backed by a transcript: `brain.py evidence add "<words>" --transcript <jsonl>` records them in `soul/evidence.md` when they are one of the owner's turns. Without a transcript `evidence add` records `by:owner_claimed`, which has the authority of `agent_inferred`; the owner backs it in person with `brain.py evidence confirm <q>`. `by:owner_confirmed` is wording the owner approved. `by:agent_inferred` is yours. `by:imported` came from another brain. `by:legacy` was there before 3.0.
+- Only `owner_verbatim` or `owner_confirmed` may create or keep a `::BOUNDARY{}` or an `A:` line. A boundary or an `A:` line without owner words is read as advice and rewritten as a tentative `::FACT{}` by `brain.py provenance repair`; a `by:owner_verbatim` claim whose `q` matches no evidence, or only an entry no transcript or owner backs, becomes `owner_claimed`, with the authority of `agent_inferred`.
 - A behavior seen on three distinct calendar days (`seen:3`, `last:` moving) may go `confirmed`; three repeats in one session are one observation. Agent-sourced blocks still decay: unseen 90 days, back to tentative; 30 more, removed. Owner-sourced blocks never decay; only a tombstone removes one: `::DECIDE{@OWNER}{what:retire <the never text verbatim>|why:<the owner's words>|context:q:<key>|by:owner_verbatim|q:<key>}`, and the decision stays.
 - `brain.py review` runs on every change to `soul/`, `memory/` and `handoff/`, by every writer, through `tools/hooks/pre-commit`; `brain.py check` and the session start apply the same rules when reading, so a commit that bypassed the hook changes nothing.
 - Code memory is not kept: paths, versions, hashes, what a function does. HEAD holds them and HEAD is newer than memory. What stays is the reasoning HEAD does not hold: why a path was chosen, which paths were rejected, what must never be done here.
@@ -254,6 +258,10 @@ Do NOT batch multiple changes into one commit. Each save is its own commit. If u
 `tools/hooks/pre-commit` (installed by `brain.py install` or `init`) runs `brain.py review --staged` and `brain.py check` on every commit; `tools/hooks/pre-push` refuses to push memory to a remote that is public. Fix errors before the push; never `--no-verify`, it changes nothing because the same rules apply when the brain is read.
 
 If push fails (auth, network), tell user: "Memory saved locally. Run `git push` when ready."
+
+## Coming from 3.0
+
+Once per clone, `python -X utf8 tools/brain.py init .` writes `env/pepper` and the hooks; `ledger encode` turns the plain rows of `env/keys.env` into `enc1:` rows and keeps `keys.env.bak` until the owner has seen `ledger decode` open them; the first `unlock` asks for the grant exactly as a new machine does. Nothing is deleted by the tool.
 
 ## Coming from 2.1
 
