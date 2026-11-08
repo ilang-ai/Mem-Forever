@@ -30,6 +30,10 @@ python -X utf8 tools/brain.py handoff review returned.md --overlay --out candida
 
 against the current hand-off. `--overlay` lays the returned blocks over the baseline by identifier and carries the rest of the baseline in, so one `::PROGRESS{}` block is enough; `--out` writes the composed whole, which is what replaces `handoff/CURRENT.md` when you accept. It rejects a deleted or weakened boundary, a forbidden or unevidenced item in `done`, a missing key, an empty value, a changed identifier and a silent drop; it lists the rest for you to decide. Only an accepted candidate replaces `handoff/CURRENT.md` (see the skill, "Merging a hand-off another model wrote").
 
+## The ledger in the message
+
+Since 3.0 the message ends with the ledger: one `::STATE{@LEDGER…}` line and one row per door with its door, kind, verify command, how to get back in and the date it last opened, and **no value**. A chat AI with no tools cannot open a door, and this message leaves the private repository, so the values stay home. `--with-values` puts them back for the owner who means to hand the whole brain to a model that has a shell; the secret scan is skipped on that message and the tool says so.
+
 ## What was measured
 
 - The English card (`rules/GRAMMAR-CARD.md`, 1351 bytes): 381 to 410 tokens on ten models' tokenizers (MiniMax, Grok 4.20 and 4.7, GLM, Kimi, DeepSeek, Qwen, Gemini, GPT, Doubao), 539 on Claude's. Measured 2026-11-04; not yet tested in conversation.
