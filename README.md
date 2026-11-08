@@ -27,7 +27,7 @@ pretty_name: Mem-Forever
 </picture>
 
 > **永久记忆 · 跨会话 · 跨模型**
-> A persistent memory layer for AI agents, built on the iLang protocol. One private Git repo is the agent's brain: a profile, one file per memory, a hand-off note that says where you stopped, and an encrypted vault for your keys. **2.1: this README is the engineering book. Copy it into any AI agent and the agent can carry it out.**
+> A persistent memory layer for AI agents, built on the iLang protocol. One private Git repo is the agent's brain: a profile, one file per memory, a hand-off note that says where you stopped, and a ledger of the keys that opens every door the brain can enter. **3.0: memory is a derivation. The keys derive the tasks, the tasks yield constants, the logic between them is annotation. This README is the engineering book; copy it into any AI agent and the agent can carry it out.**
 >
 > iLang is the first protocol to formally map Greek mathematical symbols (Σ, Δ, φ, λ, Ω, ∇, μ, Π, ψ, ξ, ζ, θ, ∂) as primitive verbs for AI-to-AI communication, and the first to define a computable vector space for AI judgment (11 dimensions, 4 axioms, fuzzy-mathematical foundation).
 
@@ -58,7 +58,7 @@ Where context windows forget, **Mem-Forever endures**.
 | **Automatic** | AI builds your profile from conversation. You never fill a form. |
 | **Private** | Your repo, your data. No server, no account, no telemetry. |
 | **Resumable** | `handoff/CURRENT.md` says what was done, what is next and what is unverified. The next session, in any tool, starts there. |
-| **Complete** | `vault/` carries your keys, age-encrypted. A fresh machine is thirty minutes from working. |
+| **Complete** | `env/ledger.env` carries your keys, one row per door, each with how to verify it and how to get back in. A fresh machine is thirty minutes from working. |
 
 ---
 
@@ -111,9 +111,10 @@ git clone --depth 1 https://github.com/ilang-ai/Mem-Forever.git brain
 Set-Location brain
 Remove-Item -Recurse -Force .git
 git init -q -b main
+python -X utf8 tools/brain.py init .     # ledger, log/, hooks; nothing existing is overwritten
 python -X utf8 tools/brain.py check
 git add -A
-git commit -q -m "init: brain from Mem-Forever 2.1"
+git commit -q -m "init: brain from Mem-Forever 3.0"
 # Then create an EMPTY PRIVATE repository on GitHub and run:
 #   git remote add origin https://github.com/YOU/brain.git
 #   git push -u origin main
@@ -124,8 +125,8 @@ bash (macOS, Linux):
 ```bash
 git clone --depth 1 https://github.com/ilang-ai/Mem-Forever.git brain \
  && cd brain && rm -rf .git && git init -q -b main \
- && python3 -X utf8 tools/brain.py check \
- && git add -A && git commit -q -m "init: brain from Mem-Forever 2.1"
+ && python3 -X utf8 tools/brain.py init . && python3 -X utf8 tools/brain.py check \
+ && git add -A && git commit -q -m "init: brain from Mem-Forever 3.0"
 # Then create an EMPTY PRIVATE repository on GitHub and run:
 #   git remote add origin https://github.com/YOU/brain.git && git push -u origin main
 ```
@@ -139,7 +140,10 @@ Acceptance: `check: 0 errors` on the last tool line, `git status` clean. Then op
 ```
 python -X utf8 tools/brain.py check        # frontmatter valid, no secret-like text, before every push
 python -X utf8 tools/brain.py migrate-cc   # bring Claude Code's auto-memory files into memory/
-python -X utf8 tools/brain.py vault pack   # encrypt your keys into vault/ (see docs/VAULT.md)
+python -X utf8 tools/brain.py ledger add HK --door 'ssh root@host' --kind ssh_password --value '<value>' --verify 'ssh -o BatchMode=yes root@host true' --recover 'provider console'
+python -X utf8 tools/brain.py ledger verify all   # every door still opens? writes last_verified (docs/LEDGER.md)
+python -X utf8 tools/brain.py unlock HK           # the key enters context only when a next item names the door
+python -X utf8 tools/brain.py log owner "<the owner's words>"   # the raw trajectory; brain.py recognize reads it
 python -X utf8 tools/brain.py install      # wire this repo into Claude Code on this machine
 python -X utf8 tools/brain.py paste        # the one message for a chat AI with no tools (§1)
 python -X utf8 tools/brain.py handoff review returned.md --overlay --out candidate.md   # review a write-back (§4.4)
@@ -180,10 +184,11 @@ soul/soul.md          ← who you are (auto-generated from conversation)
 soul/agent.md         ← the agent's own soul: a persona you gave it, and what it learned with you
 memory/MEMORY.md      ← index, one line per memory
 memory/*.md           ← one memory per file, with a `type` frontmatter
-vault/keys-*.age      ← your keys, encrypted to your own public key
+env/ledger.env        ← your keys, one row per door, plain in this private repository (docs/LEDGER.md)
+log/YYYY-MM-DD.md     ← the owner's words verbatim and the agent's decisions; recognition reads them
 rules/GRAMMAR-CARD.md ← the notation card of §1 (English; GRAMMAR-CARD.zh.md in Chinese)
 docs/PASTE.md         ← the third way in: a chat AI with no tools
-tools/brain.py        ← optional: check, migrate, vault, install, init, handoff review, paste
+tools/brain.py        ← check, ledger, unlock, log, recognize, provenance, review, import, verify, paste, handoff review, init, install, migrate-2to3
 ```
 
 ```ilang
@@ -232,12 +237,15 @@ A hand-off that comes back from another model or another session is a candidate,
 
 `--validator <path to ilang_grammar_validator.py>` runs the canon grammar check on the candidate as well. `--overlay` is for a candidate that holds only the blocks it changed, which is what a web chat sends back: the tool lays those blocks over the baseline by identifier, carries the rest of the baseline in, and reviews the whole; `--out <file>` writes that whole. Accepting is saving the accepted whole as `CURRENT.md` and committing `handoff: accept from <who>`; the previous version stays in git history. Grammar success is not truth: the key count is only a completeness check, and evidence is a recorded owner statement or an observed tool result.
 
-### 4.5 Memory, soul, vault
+### 4.5 Memory, soul, ledger
 
 - **One memory is one file** under `memory/`, with a `type` frontmatter (`user`, `feedback`, `project`, `reference`) and one index line in `memory/MEMORY.md`. Append or merge, never overwrite; patterns, not events; absolute dates; 200 lines per file, then fold the oldest into a summary paragraph. Every change is its own commit, pushed at once.
 - **`soul/soul.md`** is the owner's profile: `::STATE{@OWNER…}`, one `::GENE{}` per area with `T:` traits and `A:` anti-patterns, `::FACT{}` lines, `::BOUNDARY{}` lines. A behavior seen three times becomes `confirmed`; an explicit rejection becomes an `A:` line; a tentative trait unseen for 30 days goes; two traits that contradict split by a `when:` condition. Boundaries never split and never carry `when:`.
 - **`soul/agent.md`** is the agent's own soul, new in 2.1: a persona block the owner gave it, kept verbatim with its version and hash in the frontmatter, and below it what the agent learned with this owner, in `::LESSON{}` and `::GENE{}` blocks it writes at milestones. It never overrides `soul/soul.md` or a boundary.
-- **Secrets never enter a text file.** The memory says `[REDACTED <kind> <fingerprint>]`; the value goes into one [age](https://age-encryption.org)-encrypted bundle under `vault/`, whose private key lives in your password manager and on paper. `brain.py check` scans every push for secret-like strings. See [docs/VAULT.md](docs/VAULT.md).
+- **Keys are where the brain starts.** `env/ledger.env` holds one row per door: what it opens, the value or a `ref:` into `env/keys.env`, a `verify` command, the date it last passed, how to get back in, scope, and `why` it exists. Rows sit plain in this private repository; a key is replaceable, a lockout is not. `brain.py unlock <name>` prints a row into context only when a `next` item names its door; a top door (`root`, `payment`, `registrar`, `dns`, `account_security`, `recovery_code`, `age_identity`) opens only with a one-time code the owner issues. Sealing happens only when pairing (`brain.py pair`), to the receiver's key and the owner's. See [docs/LEDGER.md](docs/LEDGER.md).
+- **Every block says `by:` whose words it rests on**: `owner_verbatim` with `q:` pointing at the owner's words in `soul/evidence.md`, `owner_confirmed`, `agent_inferred`, `imported`, or `legacy` for blocks from before 3.0. Only owner-sourced blocks may create or keep a boundary or an `A:` line; the rest is read as advice and rewritten by `brain.py provenance repair`. Agent-sourced blocks confirm after three distinct days and still decay; owner-sourced blocks never decay and only a tombstone `::DECIDE{@OWNER}{what:retire …}` removes one.
+- **The owner's words go to `log/`**, one file per day, verbatim, never tool output. `brain.py recognize` matches them against the `T:` and `A:` anchors of `soul/soul.md`: thirty percent of the applicable anchors hit and no `done` item touching a boundary, and the person is recognized. It reads the person, not the agent.
+- **Code memory is not kept.** Paths, versions, hashes and what a function does are read from HEAD, which is always newer than memory. What stays is the reasoning HEAD does not hold, and a constant keeps its reasons: `why:` and `used_by:` edges that `brain.py verify` checks; an orphan constant is dead after 90 days.
 - **Transparency.** The agent never says "DNA", "gene", "mutation" or "decay" to the user; it says "I saved some notes" or "I remember from last time". The owner can read, edit or delete any file at any time.
 
 ### 4.6 Acceptance checks
@@ -249,6 +257,9 @@ A brain, or a change to this template, is in order when all of these hold:
 3. `BRAIN.md` and the card each stay near 400 tokens on the receiving model's own tokenizer; measure, do not estimate (§5).
 4. The five instruction files are byte-identical to the body of `skills/mem-forever/SKILL.md`.
 5. A returned hand-off goes through `handoff review` before it replaces `CURRENT.md`, and the commit says whom it was accepted from.
+6. `python -X utf8 tools/brain.py ledger verify all` opens every door it can test; a failed row is named, not hidden.
+7. `python -X utf8 tools/brain.py provenance check` reports 0 violations; `brain.py instructions check` reports 5/5 identical; `tools/hooks/pre-commit` and `pre-push` are installed (`core.hooksPath tools/hooks`).
+8. `python -X utf8 tools/test_brain.py` passes: 26 scenarios in temporary brains, nothing on the machine touched.
 
 ---
 
@@ -260,11 +271,25 @@ Numbers are from real tokenizers and real conversations, not estimates; dates ar
 - **The Chinese card** (`rules/GRAMMAR-CARD.zh.md`, 1212 bytes): 352 to 392 tokens on the same ten, 542 on Claude's. Tested in conversation on twelve model tiers from weak to strong, 2026-11-03 and 2026-11-04.
 - **`BRAIN.md`** (the eight points, English): 1552 bytes; 399 to 406 tokens on GPT, GLM and Kimi, 427 on Doubao, 588 on Claude's, net of each chat template, measured 2026-11-05 after the 2.1 edit of point 2.
 - **One web endpoint, 2026-11-05**, ChatGPT's web chat signed out, free tier, no files, no tools: the Chinese card plus a 14-block hand-off went in as one message and came back as "done reading"; the restating check gave 4, 6 and 9 items verbatim, confirmed by script against the file. The first write-back rewrote the item it moved and the review rejected it (two rejects); told the identifier rule, the second write-back passed (one flag, one transition, one addition) and was accepted.
+- **brain.py 2.0 self-test, 2026-11-08**: `tools/test_brain.py`, 26 scenarios, each in a brain built by `init` in a temporary directory: ledger add, list, verify (pass, fail, stale), unlock refused without a `next` item and outside the declared scope, a top door refused and then opened once by a one-time code, the owner's turn recognized at 0.67 and a stranger's at 0.00, a boundary contradiction resetting recognition, CJK boundary matching by bigrams, `provenance init` stamping `by:legacy`, an agent-written boundary rewritten as advice, an unsupported `owner_verbatim` downgraded to `owner_claimed`, tentative decay at 30 days and agent-confirmed decay at 90, a boundary removal rejected without a tombstone and accepted with one, a new boundary or `A:` line without owner words rejected, an owner block changed by an agent rejected, the pre-commit hook refusing such a commit, import converting a boundary and an `A:` line and stamping everything `by:imported`, `verify` naming a missing edge and an orphan, the five instruction files synced and checked, the pasted message carrying the ledger without values unless `--with-values`, the push-guard URL parser. `BRAIN.md` after the 3.0 edit: 1998 bytes; its token count on the ten tokenizers is not yet re-measured and the 2.1 numbers below are for the 2.1 text.
 - **`handoff review` self-test**, 2026-11-05: `init` into an empty directory, then `check`: 0 errors, and the seven generated files are validator-clean. An identical candidate: clean, exit 0. A single `::PROGRESS{}` block without `--overlay`: 13 rejects (every other baseline block reported missing), exit 1. The same block with `--overlay`: 0 rejects, 1 flag, 1 transition, 1 addition, exit 3, and the composed file equals the hand-made overlay from the web-endpoint run. A boundary given a `when:` under `--overlay`: rejected. One new `::LESSON{}` with its body line under `--overlay`: appended intact before the notes section, exit 0. A `::GENE{}` replaced under `--overlay` keeps its `T:`/`A:` lines, their indentation and the baseline's line endings.
 
 ---
 
 ## 6. Versions
+
+### What's new in 3.0
+
+- **Memory is a derivation.** The keys derive the tasks, the tasks yield constants, the logic between them is annotation; reading is re-deriving from the ledger, writing is appending a constant or an annotation. Code memory is dropped: HEAD holds it.
+- **The ledger** (`env/ledger.env`, [docs/LEDGER.md](docs/LEDGER.md)) replaces the vault: one row per door with `verify`, `last_verified`, `recover`, `scope`, `top`, `why`; plain in the private repository; `brain.py ledger`, `unlock`, `otp`. A secret must always open for the owner: no step depends on a model reasoning, and the owner is a recipient of everything sealed.
+- **Seal only when pairing.** `brain.py pair` seals the rows a receiver's scope needs, to its key and the owner's, with a declaration of identity, scope and authorization; `unseal` opens one. The pasted brain carries the ledger without values.
+- **The action is the pairing.** No handshake: `brain.py log` keeps the owner's turns verbatim and `brain.py recognize` reads them against the soul's anchors; thirty percent and no boundary touched is enough, the way an old friend is recognized at a glance.
+- **A source on every block.** `by:` with `owner_verbatim` (`q:` into `soul/evidence.md`), `owner_confirmed`, `agent_inferred`, `imported`, `legacy`; `brain.py provenance init|check|repair`; tombstones; decay by days; `brain.py review` as the one gate for every writer, installed as `tools/hooks/pre-commit`, and the same rules applied when the brain is read, so a bypassed hook changes nothing.
+- **Import** (`brain.py import --from`): everything stamped `by:imported`, confidence reset, boundaries become facts, nothing enters `soul.md`.
+- **Constants with their reasons**: `why:` and `used_by:` edges, `brain.py verify`, orphans die.
+- **Private means private**: `env/`, `log/` and `pair/` are exempt from the secret scan; `tools/hooks/pre-push` refuses to push memory to a public remote, asking GitHub and Gitee through their API.
+- **brain.py 2.0**, still one file, standard library only; `tools/test_brain.py` and a CI workflow; `brain.py migrate-2to3` for a 2.1 brain; `brain.py instructions sync` keeps the five instruction files byte-identical to the skill body.
+- Design record: MEM-FOREVER-3-ILANG-CRYPTO-DESIGN v1.1 (2026-11-08), kept by the owner outside this repository until the build it describes shipped; the canon amendment of the SECRETS line of MODULE::MEMORY follows separately.
 
 ### What's new in 2.1
 
@@ -314,7 +339,7 @@ Open your repo with any tool; the skill migrates once: `.ilang/soul.md` content 
                                             ┌──────▼──────┐
                                             │ Your private │
                                             │ GitHub repo  │
-                                            │ + vault/     │
+                                            │ + env/ledger │
                                             └─────────────┘
 ```
 
@@ -331,7 +356,7 @@ You never write these files. Your AI does. You can read, edit, or delete them an
 | Storage | Your GitHub repo | Local SQLite | Cloud vectors |
 | Cross-tool | Any tool that reads files, or one pasted message | Plugin per tool | API per tool |
 | Resume across sessions | `handoff/CURRENT.md` | Session history | Session history |
-| Keys for a new machine | `vault/`, age-encrypted | n/a | n/a |
+| Keys for a new machine | `env/ledger.env`, verified rows; sealed only when paired | n/a | n/a |
 | Price | Free forever | Free / Pro | Free / Pro |
 | Data ownership | You | You | Theirs |
 | Migration | `git clone` | Export | API call |

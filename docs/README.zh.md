@@ -33,7 +33,7 @@
 | **自动** | AI 从对话中自动建立你的画像，你不需要填任何表格。 |
 | **私密** | 你的仓库，你的数据。没有服务器，没有账号，没有遥测。 |
 | **可续接** | `handoff/CURRENT.md` 写着做了什么、下一步是什么、哪些没验证。下一个会话，不管用哪个工具，从这里开始。 |
-| **齐全** | `vault/` 带着你的钥匙，age 加密。一台新机器三十分钟能干活。 |
+| **齐全** | `env/ledger.env` 带着你的钥匙，一行一扇门，每行写着怎么验证、丢了怎么回来。一台新机器三十分钟能干活。 |
 
 ---
 
@@ -86,9 +86,10 @@ git clone --depth 1 https://github.com/ilang-ai/Mem-Forever.git brain
 Set-Location brain
 Remove-Item -Recurse -Force .git
 git init -q -b main
+python -X utf8 tools/brain.py init .     # ledger, log/, hooks; nothing existing is overwritten
 python -X utf8 tools/brain.py check
 git add -A
-git commit -q -m "init: brain from Mem-Forever 2.1"
+git commit -q -m "init: brain from Mem-Forever 3.0"
 # 然后在 GitHub 上新建一个「空的、私有的」仓库，再跑：
 #   git remote add origin https://github.com/YOU/brain.git
 #   git push -u origin main
@@ -99,8 +100,8 @@ bash（macOS、Linux）：
 ```bash
 git clone --depth 1 https://github.com/ilang-ai/Mem-Forever.git brain \
  && cd brain && rm -rf .git && git init -q -b main \
- && python3 -X utf8 tools/brain.py check \
- && git add -A && git commit -q -m "init: brain from Mem-Forever 2.1"
+ && python3 -X utf8 tools/brain.py init . && python3 -X utf8 tools/brain.py check \
+ && git add -A && git commit -q -m "init: brain from Mem-Forever 3.0"
 # 然后在 GitHub 上新建一个「空的、私有的」仓库，再跑：
 #   git remote add origin https://github.com/YOU/brain.git && git push -u origin main
 ```
@@ -114,7 +115,8 @@ git clone --depth 1 https://github.com/ilang-ai/Mem-Forever.git brain \
 ```
 python -X utf8 tools/brain.py check        # frontmatter 合规、无密钥形态文本，每次推送前跑
 python -X utf8 tools/brain.py migrate-cc   # 把 Claude Code 的自动记忆文件迁进 memory/
-python -X utf8 tools/brain.py vault pack   # 把钥匙加密进 vault/（见 docs/VAULT.md）
+python -X utf8 tools/brain.py ledger verify all   # 每扇门还开不开？写 last_verified（见 docs/LEDGER.md）
+python -X utf8 tools/brain.py unlock HK           # 当前 next 项点到这扇门，钥匙才进上下文
 python -X utf8 tools/brain.py install      # 把本仓库接进本机的 Claude Code
 python -X utf8 tools/brain.py paste        # 给没有工具的对话 AI 的那一条消息（§1）
 python -X utf8 tools/brain.py handoff review returned.md --overlay --out candidate.md   # 审一份回写（§4.4）
@@ -155,10 +157,11 @@ soul/soul.md          ← 你是谁（从对话中自动生成）
 soul/agent.md         ← Agent 自己的灵魂：你给它的人格，以及它跟你干活学到的
 memory/MEMORY.md      ← 索引，一行一条记忆
 memory/*.md           ← 一文件一记忆，带 `type` frontmatter
-vault/keys-*.age      ← 你的钥匙，用你自己的公钥加密
+env/ledger.env        ← 你的钥匙，一行一扇门，明文放在这个私有仓库里（docs/LEDGER.md）
+log/YYYY-MM-DD.md     ← 你的发言原文与 agent 的决策，认人读这里
 rules/GRAMMAR-CARD.md ← §1 那张记法卡（英文；GRAMMAR-CARD.zh.md 是中文）
 docs/PASTE.md         ← 第三条路：没有工具的对话 AI
-tools/brain.py        ← 可选：check、migrate、vault、install、init、handoff review、paste
+tools/brain.py        ← check、ledger、unlock、log、recognize、provenance、review、import、verify、paste、handoff review、init、install、migrate-2to3
 ```
 
 ```ilang
@@ -212,7 +215,8 @@ A:无信号的冗长⇒浪费
 - **一条记忆一个文件**，放 `memory/`，带 `type` frontmatter（`user`、`feedback`、`project`、`reference`），`memory/MEMORY.md` 里加一行索引。追加或合并，不覆盖；存模式不存事件；日期写绝对值；一文件 200 行，超了把最旧的折成一段摘要。每次改动单独一个提交，立刻推送。
 - **`soul/soul.md`** 是主人的画像：`::STATE{@OWNER…}`、每个方面一个 `::GENE{}`（`T:` 特征、`A:` 反模式）、`::FACT{}`、`::BOUNDARY{}`。一个行为见三次升 `confirmed`；一次明确拒绝加一条 `A:`；tentative 的特征三十天没见到就删；两条矛盾的特征用 `when:` 按场景拆开。边界不拆，也永远不挂 `when:`。
 - **`soul/agent.md`** 是 Agent 自己的灵魂，2.1 新增：主人给它的人格块原样保留，版本与哈希记在 frontmatter；下面是它跟这个主人学到的，里程碑时自己用 `::LESSON{}`、`::GENE{}` 写。它永远不覆盖 `soul/soul.md`，也不越过任何边界。
-- **密钥永远不进文本文件。** 记忆里写 `[REDACTED 种类 指纹]`，值进 `vault/` 下一个 [age](https://age-encryption.org) 加密包，私钥放密码管理器，另打印一份。`brain.py check` 每次推送前扫密钥形态的字符串。见 [docs/VAULT.md](VAULT.md)。
+- **钥匙是脑子的起点。** `env/ledger.env` 一行一扇门：开什么、值或 `ref:`、验证命令、上次验证日期、丢了怎么回来、范围、顶门、为什么存在。行明文放在私有仓库里，钥匙可换，被锁在外面不可换。`brain.py unlock <名>` 只在当前 next 项点到这扇门时把那行打进上下文；顶门只认 owner 在场发的一次性码。只有配对时才封（`brain.py pair`），封给对方和 owner。见 [docs/LEDGER.md](LEDGER.md)。
+- **每个块都写 `by:` 它靠谁的话站着**：`owner_verbatim` 带 `q:` 指向 `soul/evidence.md` 里你的原话、`owner_confirmed`、`agent_inferred`、`imported`、3.0 之前的块是 `legacy`。只有 owner 来源能立、能留边界和 `A:` 行，其余读作建议，由 `brain.py provenance repair` 改写。你的发言原文进 `log/`，`brain.py recognize` 拿它对 soul 的锚点，三成命中零越界就是你。代码记忆不记，HEAD 永远比记忆新。
 - **透明。** Agent 不对用户说「DNA」「gene」「mutation」「decay」，只说「我记下来了」「上次你说过」。主人随时能读、能改、能删任何文件。
 
 ### 4.6 验收
@@ -289,7 +293,7 @@ A:无信号的冗长⇒浪费
                                             ┌──────▼──────┐
                                             │ 你的私有    │
                                             │ GitHub 仓库 │
-                                            │ + vault/    │
+                                            │ + env/ledger│
                                             └─────────────┘
 ```
 
@@ -306,7 +310,7 @@ A:无信号的冗长⇒浪费
 | 存储 | 你的 GitHub 仓库 | 本地 SQLite | 云端向量 |
 | 跨工具 | 任何读文件的工具，或一条粘贴的消息 | 每个工具一个插件 | 每个工具一套 API |
 | 跨会话续接 | `handoff/CURRENT.md` | 会话历史 | 会话历史 |
-| 新机器的钥匙 | `vault/`，age 加密 | 无 | 无 |
+| 新机器的钥匙 | `env/ledger.env`，验证过的行；只在配对时封 | 无 | 无 |
 | 价格 | 永久免费 | 免费 / Pro | 免费 / Pro |
 | 数据归属 | 你 | 你 | 他们 |
 | 迁移 | `git clone` | 导出 | API 调用 |
