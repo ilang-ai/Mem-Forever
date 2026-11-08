@@ -137,6 +137,7 @@ brain.py v1.5  可移植 Agent 大脑（brain 仓库）的单文件工具。
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import io
 import json
@@ -152,7 +153,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 
-VERSION = "2.0"
+VERSION = "2.1"
 GENERATED_BY = f"brain.py/{VERSION}"
 OKF_VERSION = "0.2"
 OKF_DIRS = ("soul", "memory", "handoff")
@@ -422,10 +423,24 @@ def cmd_check(repo: Path) -> int:
             if g is not None and (not isinstance(g, dict) or not g.get("by")):
                 warnings.append(f"{rel}: generated present but generated.by missing")
 
-    # 4. 密钥前缀扫描：全仓库，只报位置不回显
+    # 4. key-shaped text: since 3.1 a WARN with the harvest command, never a refused commit (the repository is private;
+    #    the push guard is the gate). The locations are listed, the content never echoed.
     hits, scan_warnings, scanned = secret_scan(repo)
-    errors += hits
+    if hits:
+        where = sorted({h.split(":", 1)[0] for h in hits})
+        warnings.append(f"{len(hits)} key-shaped value(s) outside the ledger in {', '.join(where[:6])}{'...' if len(where) > 6 else ''}; "
+                        f"python -X utf8 tools/brain.py ledger harvest turns them into ledger rows and {{{{DOOR}}}} tokens")
     warnings += scan_warnings
+    raw_keys = _keys_env(repo)
+    plain = [k for k, v in raw_keys.items() if v and not is_encoded(v)]
+    if plain:
+        warnings.append(f"{len(plain)} plain row(s) in {KEYS_REL}; python -X utf8 tools/brain.py ledger encode")
+    if any(is_encoded(v) for v in raw_keys.values()) and load_pepper(repo) is None:
+        warnings.append(f"{PEPPER_REL} missing: encoded rows cannot be read on this clone (ledger decode --pepper <hex>)")
+    if (repo / ".git").exists():
+        rc, out = _git(repo, "config", "core.hooksPath")
+        if out.strip() != "tools/hooks":
+            warnings.append("hooks are off on this clone (core.hooksPath is not tools/hooks); run python -X utf8 tools/brain.py init .")
 
     # 5. 字节上限（代理指标）
     for rel, limit in BYTE_LIMITS.items():
@@ -493,6 +508,22 @@ def _copy_mtime(src: Path, dst: Path) -> None:
 
 
 def cmd_migrate_cc(repo: Path, src: Path, overwrite: bool) -> int:
+    rc = _migrate_cc_copy(repo, src, overwrite)
+    if rc != 0:
+        return rc
+    # 3.1: the keys inside the migrated memory become ledger rows; without them the new session knows its next step
+    # and can enter no machine
+    if has_grant(repo, "write"):
+        created = harvest(repo, ["memory"])
+        for c in created:
+            print(f"door    {c['door']} ({c['kind']}) from {c['file']}:{c['line']}")
+        print(f"harvest: {len(created)} door(s) created from the migrated memory; run ledger verify and fill verify for each")
+    else:
+        print("harvest: skipped, no write grant on this machine; python -X utf8 tools/brain.py grant --write ; then ledger harvest memory")
+    return 0
+
+
+def _migrate_cc_copy(repo: Path, src: Path, overwrite: bool) -> int:
     if not src.is_dir():
         print(f"ERROR source directory not found: {src}")
         return 1
@@ -1308,17 +1339,17 @@ INIT_BRAIN_MD = """# BRAIN.md · read this and take over
 
 This is the entry point of one person's agent brain. No runtime to load; read in this order.
 
-0. Keys first: `python -X utf8 tools/brain.py ledger verify`. Every door this brain can open is one row in `env/ledger.env`; a brain you cannot enter is not worth reading. A key reaches your context only when a `next` item names its door (`brain.py unlock <name>`); top doors need a code the owner issues.
+0. Keys first: `python -X utf8 tools/brain.py ledger verify`. Every door this brain can open is one row in `env/ledger.env`. A key reaches your context only when a `next` item names its door and this machine holds the owner's grant (`brain.py unlock`; `brain.py grant` once per machine); top doors need the owner's code. Fresh clone: `brain.py init .` once.
 1. `handoff/CURRENT.md`: what was done, what comes next, what is unverified. Restate it in two sentences, then start.
 2. Then every file under `soul/`: how the owner works and where the lines are, and the agent's own soul in `soul/agent.md`. Follow it; do not recite it.
-3. Then `memory/MEMORY.md`, one line per memory. Open a file under `memory/` only when the task needs it. The rest of the world is read from the repositories and machines themselves, never from memory.
+3. Then `memory/MEMORY.md`, one line per memory. Open a file under `memory/` only when the task needs it. Code and machines are read from themselves.
 4. Reading or updating the hand-off is not doing the work. Judge each `next` item before acting: it crosses a boundary, stop; evidence is missing, ask; it is the owner's call, defer. A recap or hand-off request authorizes nothing.
-5. New facts: if you can write this repo, edit the file, commit and push at once, one change per commit; every block says `by:` whose words it rests on. If you cannot, hand the change back as `::PROGRESS{date|done|next|unverified}`, `::DECIDE{}` or `::LESSON{}` blocks in one code fence, every key present, `none` where there is no material; a git-capable tool reviews and records it.
-6. Update `handoff/CURRENT.md` at every milestone, not at session end. Log the owner's words verbatim in `log/`; recognition reads them.
-7. No key value lives in memory text; keys live in the ledger, plain in this private repository, sealed only when the brain is paired with someone else.
+5. New facts: if you can write this repo, edit the file, commit and push at once, one change per commit, each block with `by:`. If you cannot, hand the change back as `::PROGRESS{date|done|next|unverified}`, `::DECIDE{}` or `::LESSON{}` blocks in one code fence, every key present, `none` where there is no material.
+6. Update `handoff/CURRENT.md` at every milestone, not at session end. Log the owner's words verbatim in `log/`.
+7. No key value in memory text: a key is a ledger row, encoded at rest in this private repository (reversible, not encryption), `{{DOOR}}` where it stood, sealed only when paired.
 8. `::BLOCK{k:v|k:v}`, `T:` and `A:⇒` are declaration notation: read them literally; the quick card is `rules/GRAMMAR-CARD.md`.
 
-<!-- Gate: about 400 tokens on the receiving model's tokenizer; measure before changing. Doubles as Claude.ai project, ChatGPT custom and Gemini Gem instructions. -->
+<!-- Gate: about 400 tokens on the receiving model's tokenizer; measure before changing. -->
 """
 
 INIT_GRAMMAR_CARD = """# iLang notation quick card (for reading a brain)
@@ -1413,7 +1444,8 @@ This directory is where the derivation starts. It lives in a **private** reposit
 | File | Content |
 |---|---|
 | `ledger.env` | the authorization ledger: one `::STATE{@name, door, kind, ref or value, verify, last_verified, recover, scope, top, why}` row per door; see [docs/LEDGER.md](../docs/LEDGER.md) |
-| `keys.env` | `KEY=value` lines the ledger rows point at with `ref:KEY`; written by `brain.py ledger add --value` |
+| `pepper` | 32 random bytes (hex), written by `brain.py init`, committed; the encoded rows of `keys.env` are reversible with it and this tool, and with nothing else. Not encryption: a holder of the repository reads everything; it keeps keys out of grep, screenshots, model context and pastes |
+| `keys.env` | `KEY=enc1:...` rows the ledger points at with `ref:KEY`, encoded at rest; written by `brain.py ledger add --value`, `ledger harvest`, `ledger encode`; `ledger decode` prints them plain for the owner |
 | `otp.json` | hashes of one-time codes the owner issued for top doors; expires; ignored by git |
 | `ssh/` | SSH private keys `migrate-2to3` brought over from a 2.1 vault, one ledger row each |
 | `settings.json` | your agent CLI settings (Claude Code reads `~/.claude/settings.json`) |
@@ -1422,7 +1454,7 @@ This directory is where the derivation starts. It lives in a **private** reposit
 | `ssh_config.template` | host aliases and jump hosts |
 | `install.ps1`, `install.sh` | new-machine checklist as a script: git, python, your agent CLI, then `brain.py install` and `brain.py ledger verify all` |
 
-Rule: a key reaches a model's context only when a `next` item names its door (`brain.py unlock`), never by reading this directory into the conversation. The pasted brain (`brain.py paste`) carries the ledger without values unless the owner says `--with-values`.
+Rule: a key reaches a model's context only when a `next` item names its door (`brain.py unlock`) and this machine holds the owner's grant (`brain.py grant <DOOR>` or `--all`, git config, never in the repository; top doors keep the one-time code), never by reading this directory into the conversation. The pasted brain (`brain.py paste`) carries the ledger without values unless the owner says `--with-values`.
 """
 
 INIT_GITIGNORE = "__pycache__/\n*.pyc\n*.tmp\nenv/otp.json\n"
@@ -1506,6 +1538,8 @@ def cmd_init(repo: Path, agent: str, no_git: bool) -> int:
     put("env/README.md", INIT_ENV_README)
     put("env/ledger.env", LEDGER_HEADER)
     put(".gitignore", INIT_GITIGNORE)
+    if write_pepper(repo):
+        created.append(PEPPER_REL)
     me = Path(__file__).resolve()
     tool = repo / "tools" / "brain.py"
     if not tool.exists():
@@ -1862,15 +1896,12 @@ def cmd_paste(repo: Path, out: Path | None, lang: str, with_values: bool = False
     except FileNotFoundError as e:
         print(f"ERROR   {e}", file=sys.stderr)
         return 1
-    hits = [] if with_values else _secret_hits_in_text(text)
-    if hits:
-        for h in hits:
-            print(f"ERROR   {h}", file=sys.stderr)
-        print(f"paste: refused, {len(hits)} secret-like hits; nothing written", file=sys.stderr)
-        return 1
+    masked = 0
+    if not with_values:
+        text, masked = mask_key_values(text)
     data = text.encode("utf-8")
-    note = ("ledger VALUES INCLUDED, scan skipped: this message leaves the private repository, hand it only where the work needs the keys"
-            if with_values else "0 secret-like hits; the ledger rows carry no values")
+    note = ("ledger VALUES INCLUDED, nothing masked: this message leaves the private repository, hand it only where the work needs the keys"
+            if with_values else f"{masked} key-shaped string(s) masked as {{{{UNHARVESTED ...}}}}; the ledger rows carry no values")
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(data)
@@ -2230,6 +2261,11 @@ import urllib.error as _urlerr
 
 LEDGER_REL = "env/ledger.env"
 KEYS_REL = "env/keys.env"
+PEPPER_REL = "env/pepper"                        # 3.1: 32 random bytes, hex, committed; the encoded state needs nothing else
+ENC_TAG = "enc1:"
+GRANT_PREFIX = "brain.grant."                    # 3.1: grants are git config of the machine, never a file of the repository
+HARVEST_DEFAULT_PATHS = ("memory", "soul", "handoff")
+HARVEST_SKIP = ("soul/evidence.md",)
 OTP_REL = "env/otp.json"
 LOG_DIR = "log"
 PAIR_DIR = "pair"
@@ -2308,6 +2344,230 @@ def load_ledger(repo: Path) -> tuple[list[dict], list[str]]:
         rows.append({"name": name, "kv": kv, "line": i, "raw": s, "error": "" if name else "row has no @name"})
     return rows, lines
 
+# ---------------------------------------------------------------- 3.1 three states: plain in a process, encoded at rest, sealed when pairing
+
+def pepper_path(repo: Path) -> Path:
+    return repo / PEPPER_REL
+
+
+def load_pepper(repo: Path, override: str | None = None) -> bytes | None:
+    if override:
+        try:
+            return bytes.fromhex(override.strip())
+        except ValueError:
+            return None
+    p = pepper_path(repo)
+    if not p.is_file():
+        return None
+    try:
+        return bytes.fromhex(read_text(p).strip())
+    except ValueError:
+        return None
+
+
+def write_pepper(repo: Path) -> bool:
+    """Create env/pepper when missing. Never overwrites. Returns True when written."""
+    p = pepper_path(repo)
+    if p.is_file():
+        return False
+    p.parent.mkdir(parents=True, exist_ok=True)
+    _write_lf(p, _secrets.token_hex(32) + "\n")
+    return True
+
+
+def _keystream(pepper: bytes, door: str, n: int) -> bytes:
+    out = b""
+    c = 0
+    while len(out) < n:
+        out += hashlib.sha256(pepper + door.encode("utf-8") + c.to_bytes(4, "big")).digest()
+        c += 1
+    return out[:n]
+
+
+def is_encoded(v: str | None) -> bool:
+    return isinstance(v, str) and v.startswith(ENC_TAG)
+
+
+def enc1_encode(pepper: bytes, door: str, value: str) -> str:
+    """Reversible encoding, not encryption: anyone holding the repository (pepper) and this tool can read it back.
+    It keeps a key out of grep, screenshots, model context and pastes; it does not protect against a holder of the repository."""
+    b = value.encode("utf-8")
+    ks = _keystream(pepper, door, len(b))
+    return ENC_TAG + base64.urlsafe_b64encode(bytes(x ^ y for x, y in zip(b, ks))).decode("ascii").rstrip("=")
+
+
+def enc1_decode(pepper: bytes, door: str, token: str) -> str:
+    t = token[len(ENC_TAG):]
+    t += "=" * (-len(t) % 4)
+    raw = base64.urlsafe_b64decode(t.encode("ascii"))
+    ks = _keystream(pepper, door, len(raw))
+    return bytes(x ^ y for x, y in zip(raw, ks)).decode("utf-8", errors="replace")
+
+
+def _git_config_bool(repo: Path, key: str) -> bool:
+    rc, out = _git(repo, "config", "--bool", key)
+    return rc == 0 and out.strip() == "true"
+
+
+def has_grant(repo: Path, name: str) -> bool:
+    """A grant is a line of this machine's git config: brain.grant.<DOOR>, brain.grant.all, brain.grant.write."""
+    return _git_config_bool(repo, GRANT_PREFIX + name)
+
+
+def grant_mode(row: dict) -> str:
+    g = row["kv"].get("grant", "").strip().lower()
+    if g in ("once", "standing"):
+        return g
+    return "once" if is_top(row) else "standing"
+
+
+def _need_write_grant(repo: Path, what: str) -> bool:
+    """True when storing may proceed. Prints the one-sentence ask otherwise."""
+    if has_grant(repo, "write"):
+        return True
+    print(f"GRANT   storing a key ({what}) needs the owner's yes once on this machine: python -X utf8 tools/brain.py grant --write")
+    return False
+
+
+# Harvest: find the value, not just the prefix. Group 1 is the value. Built by concatenation so this file does not
+# trip its own scan. The table is the only place the tool names a vendor.
+HARVEST_PATTERNS = [
+    ("anthropic_key", re.compile(r"(?<![A-Za-z0-9_\-])(" + "s" + r"k-ant-[A-Za-z0-9_\-]{16,})")),
+    ("openai_key", re.compile(r"(?<![A-Za-z0-9_\-])(" + "s" + r"k-(?!ant-)[A-Za-z0-9_\-]{16,})")),
+    ("github_token", re.compile(r"(?<![A-Za-z0-9_])(" + "gh" + r"[pousr]_[A-Za-z0-9]{20,}|github_" + r"pat_[A-Za-z0-9_]{20,})")),
+    ("aws_key", re.compile(r"(?<![A-Za-z0-9])(" + "AK" + "IA" + r"[0-9A-Z]{16})(?![A-Za-z0-9])")),
+    ("vendor_token", re.compile(r"(?<![A-Za-z0-9_\-])((?:xox[abpr]-|gl" + r"pat-|cf" + r"at_|lxm" + r"cp_|ts" + r"key-|AI" + r"za|ya29\.|[sr]k_live_)[A-Za-z0-9_\-.]{8,})")),
+    ("jwt", re.compile(r"(ey" + r"J[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,})")),
+    ("bearer_token", re.compile(r"Bearer\s+((?!\$\{)[A-Za-z0-9_\-.]{16,})")),
+    ("url_credential", re.compile(r"://[^\s/:@]+:((?!\$\{)[^\s/@]{4,})@")),
+    ("credential", re.compile(r"(?:Secret|Token|EncodingAESKey|CorpID|AppSecret|SecretKey|AccessKey|API_KEY|api_key|ApiKey|client_secret|app_secret|access_key|secret_key)\s*[=:：]\s*[`'\"]?([A-Za-z0-9_\-+/=]{12,})")),
+    ("generic_password", re.compile(r"(?:密码|口令|password|passwd|pwd|root\s*/)\s*[:：=]?\s*[`'\"]?(" + _MIXED + r")(?![/\\.])")),
+    ("ssh_private_key", re.compile("(-----BE" + r"GIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----)")),
+]
+TOKEN_RE = re.compile(r"\{\{[A-Z][A-Z0-9_]*\}\}")
+
+
+def find_key_values(text: str) -> list[tuple[str, str, int]]:
+    """(kind, value, line) for every key-shaped value in text; a value inside a {{TOKEN}} is skipped."""
+    out: list[tuple[str, str, int]] = []
+    seen: set[str] = set()
+    for kind, rx in HARVEST_PATTERNS:
+        for m in rx.finditer(text):
+            v = m.group(1)
+            if not v or v in seen or "{{" in v:
+                continue
+            seen.add(v)
+            out.append((kind, v, text.count("\n", 0, m.start(1)) + 1))
+    return out
+
+
+def _harvest_door_name(kind: str, stem: str, taken: set[str]) -> str:
+    base = re.sub(r"[^A-Z0-9]+", "_", (kind + "_" + stem).upper()).strip("_") or "KEY"
+    if base[0].isdigit():
+        base = "K_" + base
+    name, n = base, 1
+    while name in taken:
+        n += 1
+        name = f"{base}_{n}"
+    taken.add(name)
+    return name
+
+
+def harvest(repo: Path, paths: list[str] | None = None) -> list[dict]:
+    """Turn key-shaped values under memory/ soul/ handoff/ (or the given paths) into ledger rows: the value encoded into
+    env/keys.env, one ::STATE row with verify:none, and the text replaced by {{DOOR}}. log/ env/ pair/ and
+    soul/evidence.md are never touched. Returns the doors created."""
+    rows, lines = load_ledger(repo)
+    taken = {r["name"] for r in rows if not r.get("error")}
+    pepper = load_pepper(repo)
+    if pepper is None:
+        write_pepper(repo)
+        pepper = load_pepper(repo)
+    keys = _keys_env(repo)
+    kp = repo / KEYS_REL
+    keys_text = read_text(kp).replace("\r\n", "\n") if kp.is_file() else "# env/keys.env - KEY=value rows referenced by env/ledger.env (ref:KEY). Private repository; never pasted.\n"
+    if not lines:
+        lines = LEDGER_HEADER.rstrip("\n").split("\n")
+    lines = [ln for ln in lines]
+    while lines and not lines[-1].strip():
+        lines.pop()
+    value_door: dict[str, str] = {}
+    created: list[dict] = []
+    targets: list[Path] = []
+    for rel in (paths or list(HARVEST_DEFAULT_PATHS)):
+        p = repo / rel
+        if p.is_file():
+            targets.append(p)
+        elif p.is_dir():
+            targets += [q for q in sorted(p.rglob("*")) if q.is_file()]
+    for p in targets:
+        rel = p.relative_to(repo).as_posix()
+        top = rel.split("/", 1)[0]
+        if top in SCAN_EXEMPT_TOP or rel in HARVEST_SKIP or "/.git/" in f"/{rel}/":
+            continue
+        try:
+            text = p.read_bytes().decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        nl = "\r\n" if "\r\n" in text else "\n"
+        body = text.replace("\r\n", "\n")
+        found = find_key_values(body)
+        if not found:
+            continue
+        stem = re.sub(r"\.[^.]+$", "", p.name)
+        for kind, value, line in found:
+            if value in value_door:
+                door = value_door[value]
+            else:
+                door = _harvest_door_name(kind, stem, taken)
+                value_door[value] = door
+                keys_text = keys_text.rstrip("\n") + f"\n{door}={enc1_encode(pepper, door, value)}\n"
+                keys[door] = value
+                fields = [f"@{door}", f"door:{kind} found in {rel}", f"kind:{kind}", f"ref:{door}", "verify:none",
+                          "last_verified:none", f"recover:see {rel}:{line} and the service that issued it", f"scope:{stem}",
+                          "top:false", f"why:harvested from {rel}:{line} on {_today()}"]
+                lines.append("::STATE{" + ", ".join(fields) + "}")
+                created.append({"door": door, "kind": kind, "file": rel, "line": line})
+            body = body.replace(value, "{{" + door + "}}")
+        p.write_bytes(body.replace("\n", nl).encode("utf-8"))
+    if created:
+        _write_lf_atomic(kp, keys_text)
+        _save_ledger(repo, lines)
+    return created
+
+
+def mask_key_values(text: str) -> tuple[str, int]:
+    """For text that leaves the repository: every key-shaped value becomes {{UNHARVESTED <kind> <fingerprint>}}."""
+    n = 0
+    for kind, value, _ in find_key_values(text):
+        text = text.replace(value, "{{UNHARVESTED " + kind + " " + _sha256(value.encode("utf-8"))[:8] + "}}")
+        n += 1
+    # anything the prefix scan still sees: mask the token run from the match to the next whitespace
+    for label, rx in SECRET_PATTERNS:
+        for m in list(rx.finditer(text))[::-1]:
+            start = m.start()
+            end = start
+            while end < len(text) and not text[end].isspace():
+                end += 1
+            if "{{UNHARVESTED" in text[start:end]:
+                continue
+            text = text[:start] + "{{UNHARVESTED " + re.sub(r"[^A-Za-z0-9_]+", "_", label).strip("_").lower() + " " + _sha256(text[start:end].encode("utf-8"))[:8] + "}}" + text[end:]
+            n += 1
+    return text, n
+
+
+def _handoff_scope(repo: Path) -> set[str] | None:
+    """The scope the hand-off declares: scope: on the PROGRESS block. None when it declares none."""
+    cur = _handoff_path(repo)
+    if not cur.is_file():
+        return None
+    for b in parse_blocks(read_text(cur)):
+        if b["kind"] == "PROGRESS":
+            sc = b["kv"].get("scope", "").strip()
+            if sc and sc != "none":
+                return {t for t in re.split(r"[\s,]+", sc) if t}
+    return None
+
 
 def _keys_env(repo: Path) -> dict[str, str]:
     p = repo / KEYS_REL
@@ -2326,14 +2586,35 @@ def _keys_env(repo: Path) -> dict[str, str]:
     return out
 
 
-def ledger_value(repo: Path, row: dict) -> str | None:
+def ledger_value(repo: Path, row: dict, pepper: bytes | None = None) -> str | None:
     kv = row["kv"]
     if kv.get("value") not in (None, "", "none"):
-        return kv["value"]
+        v = kv["value"]
+    else:
+        ref = kv.get("ref")
+        if not ref:
+            return None
+        v = _keys_env(repo).get(ref)
+        if v is None:
+            return None
+    if is_encoded(v):
+        pepper = pepper or load_pepper(repo)
+        if pepper is None:
+            return None
+        return enc1_decode(pepper, kv.get("ref") or row["name"], v)
+    return v
+
+
+def value_problem(repo: Path, row: dict) -> str:
+    """Why ledger_value returned None, for the messages."""
+    kv = row["kv"]
     ref = kv.get("ref")
-    if ref:
-        return _keys_env(repo).get(ref)
-    return None
+    raw = kv.get("value") if kv.get("value") not in (None, "", "none") else (_keys_env(repo).get(ref) if ref else None)
+    if raw is None:
+        return f"no value or ref resolves ({KEYS_REL})"
+    if is_encoded(raw) and load_pepper(repo) is None:
+        return f"{PEPPER_REL} missing: the encoded value cannot be read on this clone (ledger decode --pepper <hex> if the owner kept it)"
+    return "value unreadable"
 
 
 def _is_stale(row: dict) -> bool:
@@ -2422,7 +2703,7 @@ def cmd_ledger(repo: Path, action: str, name: str | None, opts: dict) -> int:
                   + ", ".join(r["name"] for r in stale))
         return 1 if bad else 0
 
-    if action in ("add", "show", "verify") and name and name != "all":
+    if action in ("add", "show", "verify", "reveal") and name and name != "all":
         name = ledger_name(name)
     if action == "add":
         if not name:
@@ -2437,13 +2718,19 @@ def cmd_ledger(repo: Path, action: str, name: str | None, opts: dict) -> int:
             return 2
         value, ref = opts.get("value"), opts.get("ref")
         if value and not ref:
+            if not _need_write_grant(repo, f"ledger add {name}"):
+                return 2
             ref = name
             kp = repo / KEYS_REL
             existing = read_text(kp).replace("\r\n", "\n") if kp.is_file() else "# env/keys.env - KEY=value rows referenced by env/ledger.env (ref:KEY). Private repository; never pasted.\n"
             if re.search(r"(?m)^" + re.escape(ref) + r"=", existing):
                 print(f"ERROR   {KEYS_REL} already has {ref}; pass --ref with another key name")
                 return 1
-            _write_lf_atomic(kp, existing.rstrip("\n") + f"\n{ref}={value}\n")
+            pepper = load_pepper(repo)
+            if pepper is None:
+                write_pepper(repo)
+                pepper = load_pepper(repo)
+            _write_lf_atomic(kp, existing.rstrip("\n") + f"\n{ref}={enc1_encode(pepper, ref, value)}\n")
         fields = [f"@{name}", f"door:{door}", f"kind:{kind}"]
         if ref:
             fields.append(f"ref:{ref}")
@@ -2454,6 +2741,8 @@ def cmd_ledger(repo: Path, action: str, name: str | None, opts: dict) -> int:
         fields.append(f"recover:{opts.get('recover') or 'none'}")
         fields.append(f"scope:{opts.get('scope') or 'none'}")
         fields.append(f"top:{'true' if opts.get('top') or kind.lower() in TOP_KINDS else 'false'}")
+        if opts.get("grant") in ("once", "standing"):
+            fields.append(f"grant:{opts['grant']}")
         fields.append(f"why:{opts.get('why') or 'none'}")
         row = "::STATE{" + ", ".join(fields) + "}"
         if not lines:
@@ -2463,7 +2752,78 @@ def cmd_ledger(repo: Path, action: str, name: str | None, opts: dict) -> int:
             lines.pop()
         lines.append(row)
         _save_ledger(repo, lines)
-        print(f"ledger  added {name} ({kind}) -> {LEDGER_REL}" + (f"; value stored in {KEYS_REL} as {ref}" if value else ""))
+        print(f"ledger  added {name} ({kind}) -> {LEDGER_REL}" + (f"; value stored encoded in {KEYS_REL} as {ref}" if value else ""))
+        return 0
+
+    if action == "encode":
+        kp = repo / KEYS_REL
+        if not kp.is_file():
+            print(f"ledger encode: no {KEYS_REL}; nothing to do")
+            return 0
+        pepper = load_pepper(repo)
+        if pepper is None:
+            write_pepper(repo)
+            pepper = load_pepper(repo)
+            print(f"create  {PEPPER_REL}")
+        text = read_text(kp).replace("\r\n", "\n")
+        out, n = [], 0
+        for ln in text.split("\n"):
+            st = ln.strip()
+            if st and not st.startswith("#") and "=" in st:
+                k, v = st.split("=", 1)
+                v = v.strip()
+                if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                    v = v[1:-1]
+                if v and not is_encoded(v):
+                    out.append(f"{k.strip()}={enc1_encode(pepper, k.strip(), v)}")
+                    n += 1
+                    continue
+            out.append(ln)
+        if n:
+            bak = kp.with_suffix(".env.bak")
+            if not bak.exists():
+                bak.write_bytes(kp.read_bytes())
+                print(f"backup  {bak.relative_to(repo).as_posix()} (plain; delete it after ledger decode shows the rows open)")
+            _write_lf_atomic(kp, "\n".join(out).rstrip("\n") + "\n")
+        print(f"ledger encode: {n} row(s) encoded; the encoding is reversible with {PEPPER_REL} and this tool, it is not encryption")
+        return 0
+
+    if action == "decode":
+        kp = repo / KEYS_REL
+        raw = _keys_env(repo)
+        if not raw:
+            print(f"ledger decode: no rows in {KEYS_REL}")
+            return 0
+        pepper = load_pepper(repo, opts.get("pepper"))
+        if pepper is None and any(is_encoded(v) for v in raw.values()):
+            print(f"ERROR   {PEPPER_REL} missing: the repository is incomplete. The owner's copy of the pepper opens it: ledger decode --pepper <hex>")
+            return 2
+        for k, v in raw.items():
+            print(f"{k}={enc1_decode(pepper, k, v) if is_encoded(v) else v}")
+        return 0
+
+    if action == "reveal":
+        if not name:
+            print("ERROR   ledger reveal needs the door name")
+            return 2
+        r = next((x for x in rows if x["name"] == name), None)
+        if r is None:
+            print(f"ERROR   no ledger row named {name}")
+            return 1
+        val = ledger_value(repo, r)
+        if val is None:
+            print(f"ERROR   {name}: {value_problem(repo, r)}")
+            return 2
+        print(val)
+        return 0
+
+    if action == "harvest":
+        if not _need_write_grant(repo, "ledger harvest"):
+            return 2
+        created = harvest(repo, opts.get("paths") or None)
+        for c in created:
+            print(f"door    {c['door']} ({c['kind']}) from {c['file']}:{c['line']} -> {{{{{c['door']}}}}} in the text, value encoded in {KEYS_REL}, verify:none")
+        print(f"ledger harvest: {len(created)} door(s) created; fill verify with ledger verify or the owner's word; log/ and {HARVEST_SKIP[0]} untouched")
         return 0
 
     if action == "show":
@@ -2602,9 +2962,11 @@ def cmd_unlock(repo: Path, name: str, scope: str | None, code: str | None, no_lo
     if row is None:
         print(f"ERROR   no ledger row named {name}")
         return 1
-    if is_top(row):
+    mode = grant_mode(row)
+    if is_top(row) or mode == "once":
         if not code:
-            print(f"TOP     {name} is a top door ({row['kv'].get('kind', '')}); it never unlocks from the record. "
+            what = "a top door" if is_top(row) else "a once door (grant:once)"
+            print(f"TOP     {name} is {what} ({row['kv'].get('kind', '')}); it never unlocks from the record. "
                   f"The owner issues a one-time code in person: brain.py otp issue {name}; then brain.py unlock {name} --code <code>")
             return 3
         ok, why = _otp_consume(repo, name, code)
@@ -2612,10 +2974,17 @@ def cmd_unlock(repo: Path, name: str, scope: str | None, code: str | None, no_lo
             print(f"REFUSE  {name}: {why}")
             return 3
     else:
-        if scope:
-            declared = {t for t in re.split(r"[\s,]+", scope) if t}
-            rs = row_scope(row)
-            if rs and not rs <= declared:
+        if not (has_grant(repo, name) or has_grant(repo, "all")):
+            print(f"REFUSE  {name}: no grant on this machine. The owner says yes once: python -X utf8 tools/brain.py grant {name}"
+                  f"   (or: grant --all, every standing door on this machine)")
+            return 3
+        rs = row_scope(row)
+        declared = {t for t in re.split(r"[\s,]+", scope) if t} if scope else _handoff_scope(repo)
+        if rs:
+            if declared is None:
+                print(f"REFUSE  {name}: the row has scope {sorted(rs)} and none was declared; pass --scope or put scope: on the PROGRESS block of handoff/CURRENT.md")
+                return 1
+            if not rs <= declared:
                 print(f"REFUSE  {name}: row scope {sorted(rs)} is not inside the declared scope {sorted(declared)}; the item stays in next")
                 return 1
         items = handoff_next_items(repo)
@@ -2624,11 +2993,43 @@ def cmd_unlock(repo: Path, name: str, scope: str | None, code: str | None, no_lo
             return 1
     val = ledger_value(repo, row)
     if val is None:
-        print(f"ERROR   {name}: no value or ref resolves (env/keys.env)")
+        print(f"ERROR   {name}: {value_problem(repo, row)}")
         return 1
     print(row_text(row, True, val))
     if not no_log:
-        _log_append(repo, "AGENT", f"unlock {name} ({row['kv'].get('door', '')})", kind="unlock")
+        _log_append(repo, "AGENT", f"unlock {name} ({row['kv'].get('door', '')}) grant:{'code' if (is_top(row) or mode == 'once') else ('door' if has_grant(repo, name) else 'all')}", kind="unlock")
+    return 0
+
+
+def cmd_grant(repo: Path, door: str | None, all_: bool, write: bool, revoke: bool, list_: bool) -> int:
+    if not (repo / ".git").exists():
+        print("ERROR   grants live in this clone's git config; there is no .git here")
+        return 1
+    if list_:
+        rc, out = _git(repo, "config", "--get-regexp", "^brain\\.grant\\.")
+        print(out.strip() if out.strip() else "grant: none on this machine")
+        return 0
+    targets: list[str] = []
+    if all_:
+        targets.append("all")
+    if write:
+        targets.append("write")
+    if door:
+        targets.append(ledger_name(door))
+    if not targets:
+        print("ERROR   grant needs <DOOR>, --all or --write (add --revoke to take one back, --list to see them)")
+        return 2
+    for t in targets:
+        if revoke:
+            _git(repo, "config", "--unset", GRANT_PREFIX + t)
+            print(f"grant   revoked {t} on this machine")
+        else:
+            rc, out = _git(repo, "config", "--bool", GRANT_PREFIX + t, "true")
+            if rc != 0:
+                print(f"ERROR   git config failed: {out}")
+                return 1
+            print(f"grant   {t} on this machine ({GRANT_PREFIX}{t} true in .git/config; the repository never carries it)")
+    _log_append(repo, "OWNER", f"grant {'revoke ' if revoke else ''}{' '.join(targets)}", kind="grant")
     return 0
 
 
@@ -2992,29 +3393,42 @@ def quote_q(text: str) -> str:
     return _sha256(_norm(text).encode("utf-8"))[:8]
 
 
-def _evidence_q(repo_text: str) -> set[str]:
-    qs = set()
+BACKED_SOURCES = ("owner_verbatim", "owner_confirmed")
+
+
+def _evidence_q(repo_text: str) -> dict[str, str]:
+    """q -> 'backed' (a transcript or the owner confirmed it) or 'claimed' (the agent wrote it down)."""
+    qs: dict[str, str] = {}
     for b in parse_blocks(repo_text):
         if b["kind"] == "EVIDENCE":
             q, text = b["kv"].get("q", ""), b["kv"].get("text", "")
             if q and text and quote_q(text) == q:
-                qs.add(q)
+                level = "backed" if b["kv"].get("by", "") in BACKED_SOURCES else "claimed"
+                if qs.get(q) != "backed":
+                    qs[q] = level
     return qs
 
 
-def evidence_keys(repo: Path, transcript: Path | None = None) -> set[str]:
-    """All valid evidence keys: EVIDENCE blocks in soul/ memory/ handoff/ and soul/evidence.md; with a transcript,
-    only quotes that appear as the owner's own turns count (Claude Code JSONL adapter: type user, message.role user)."""
-    if transcript is not None:
-        return transcript_user_q(transcript)
-    qs: set[str] = set()
+def evidence_backing(repo: Path, transcript: Path | None = None) -> dict[str, str]:
+    """Every known evidence key with its backing: EVIDENCE blocks in soul/ memory/ handoff/ and soul/evidence.md;
+    a transcript's user turns are backed (Claude Code JSONL adapter: type user, message.role user)."""
+    out: dict[str, str] = {}
     files = _prov_files(repo)
     ev = repo / "soul" / "evidence.md"
     if ev.is_file() and ev not in files:
         files.append(ev)
     for p in files:
-        qs |= _evidence_q(read_text(p))
-    return qs
+        for q, level in _evidence_q(read_text(p)).items():
+            if out.get(q) != "backed":
+                out[q] = level
+    if transcript is not None:
+        for q in transcript_user_q(transcript):
+            out[q] = "backed"
+    return out
+
+
+def evidence_keys(repo: Path, transcript: Path | None = None) -> set[str]:
+    return set(evidence_backing(repo, transcript))
 
 
 def transcript_user_q(transcript: Path) -> set[str]:
@@ -3052,7 +3466,15 @@ def transcript_user_q(transcript: Path) -> set[str]:
     return qs
 
 
-def cmd_evidence(repo: Path, action: str, text: str | None, where: str | None) -> int:
+def _evidence_append(repo: Path, q: str, where: str, by: str, src: str, clean: str) -> None:
+    p = repo / "soul" / "evidence.md"
+    head = "" if p.is_file() else ("---\ntype: reference\nname: evidence\ndescription: The owner's words that soul blocks cite by q, with by: saying what backs each one. Appended by brain.py evidence; never edited.\n---\n# Evidence\n\n")
+    block = f"::EVIDENCE{{q:{q}|date:{_today()}|where:{where}|by:{by}" + (f"|src:{src}" if src else "") + f"|text:{clean}}}\n"
+    with open(p, "ab") as fh:
+        fh.write((head + block).encode("utf-8"))
+
+
+def cmd_evidence(repo: Path, action: str, text: str | None, where: str | None, transcript: Path | None = None) -> int:
     if action == "q":
         if not text:
             print("ERROR   evidence q needs the quoted text")
@@ -3061,16 +3483,42 @@ def cmd_evidence(repo: Path, action: str, text: str | None, where: str | None) -
         return 0
     if action == "add":
         if not text:
-            print("ERROR   evidence add needs the owner's words verbatim")
+            print("ERROR   evidence add needs the owner's words")
             return 2
         q = quote_q(text)
-        p = repo / "soul" / "evidence.md"
-        head = "" if p.is_file() else ("---\ntype: reference\nname: evidence\ndescription: The owner's words, verbatim, that soul blocks cite by q. Appended by brain.py evidence add; never edited.\n---\n# Evidence\n\n")
         clean = _norm(text).replace("|", "/").replace("}", ")").replace("{", "(")
-        block = f"::EVIDENCE{{q:{q}|date:{_today()}|where:{(where or 'chat').replace('|', '/')}|text:{clean}}}\n"
-        with open(p, "ab") as fh:
-            fh.write((head + block).encode("utf-8"))
-        print(f"evidence q:{q} -> soul/evidence.md; tag the block: by:owner_verbatim|q:{q}")
+        by, src = "owner_claimed", ""
+        if transcript is not None:
+            if not transcript.is_file():
+                print(f"ERROR   transcript not found: {transcript}")
+                return 2
+            if q in transcript_user_q(transcript):
+                by, src = "owner_verbatim", "transcript:" + _sha256(transcript.read_bytes())[:8]
+            else:
+                print(f"WARN    the text is not a user turn of {transcript.name}; recorded as owner_claimed")
+        _evidence_append(repo, q, (where or "chat").replace("|", "/"), by, src, clean)
+        if by == "owner_verbatim":
+            print(f"evidence q:{q} -> soul/evidence.md (backed by the transcript); tag the block: by:owner_verbatim|q:{q}")
+        else:
+            print(f"evidence q:{q} -> soul/evidence.md as owner_claimed (no transcript backs it); tag the block: by:owner_claimed|q:{q} "
+                  f"(authority of agent_inferred; the owner backs it with: evidence confirm {q}, or add it with --transcript)")
+        return 0
+    if action == "confirm":
+        if not text:
+            print("ERROR   evidence confirm needs the q to confirm")
+            return 2
+        q = text.strip()
+        p = repo / "soul" / "evidence.md"
+        found = None
+        if p.is_file():
+            for b in parse_blocks(read_text(p)):
+                if b["kind"] == "EVIDENCE" and b["kv"].get("q") == q:
+                    found = b["kv"].get("text", "")
+        if found is None:
+            print(f"ERROR   no evidence with q:{q}")
+            return 1
+        _evidence_append(repo, q, "owner_confirm", "owner_confirmed", "", found)
+        print(f"evidence q:{q} confirmed by the owner; blocks citing it may say by:owner_verbatim")
         return 0
     print(f"ERROR   unknown evidence action {action}")
     return 2
@@ -3080,7 +3528,8 @@ def provenance_scan(repo: Path, transcript: Path | None = None) -> tuple[list[di
     """Return (violations, decays). Each entry: file, line (1-based), kind, text, rule, fix."""
     violations: list[dict] = []
     decays: list[dict] = []
-    qs = evidence_keys(repo, transcript)
+    backing = evidence_backing(repo, transcript)
+    qs = set(backing)
     for p in _prov_files(repo):
         text = read_text(p)
         lines = text.replace("\r\n", "\n").split("\n")
@@ -3096,6 +3545,8 @@ def provenance_scan(repo: Path, transcript: Path | None = None) -> tuple[list[di
                 violations.append({"file": rel, "line": n, "kind": kind, "text": b["raw"], "rule": "boundary_without_owner_source", "by": by})
             if by == "owner_verbatim" and kv.get("q", "") not in qs:
                 violations.append({"file": rel, "line": n, "kind": kind, "text": b["raw"], "rule": "owner_verbatim_without_evidence", "by": by})
+            elif by == "owner_verbatim" and backing.get(kv.get("q", "")) == "claimed":
+                violations.append({"file": rel, "line": n, "kind": kind, "text": b["raw"], "rule": "owner_verbatim_without_transcript", "by": by})
             if kind in ("FACT", "LESSON", "GENE") and kv.get("conf") == "confirmed" and by == "agent_inferred":
                 try:
                     seen = int(kv.get("seen", "0"))
@@ -3117,6 +3568,8 @@ def provenance_scan(repo: Path, transcript: Path | None = None) -> tuple[list[di
                         violations.append({"file": rel, "line": n + i, "kind": "A", "text": line, "rule": "antipattern_without_owner_source", "by": tby})
                     if tby == "owner_verbatim" and tkv.get("q", "") not in qs:
                         violations.append({"file": rel, "line": n + i, "kind": "TA", "text": line, "rule": "owner_verbatim_without_evidence", "by": tby})
+                    elif tby == "owner_verbatim" and backing.get(tkv.get("q", "")) == "claimed":
+                        violations.append({"file": rel, "line": n + i, "kind": "TA", "text": line, "rule": "owner_verbatim_without_transcript", "by": tby})
                     tage = _days_since(tkv.get("last", ""))
                     if tage is not None and tby not in OWNER_SOURCES and tage > CONFIRMED_AGENT_TTL + TENTATIVE_TTL:
                         decays.append({"file": rel, "line": n + i, "kind": "TA", "text": line, "rule": "trait_expired", "by": tby})
@@ -3198,7 +3651,7 @@ def cmd_provenance(repo: Path, action: str, date: str | None, commit: bool, tran
                     indent = raw[: len(raw) - len(raw.lstrip())]
                     newt = f"T:avoid_{ante.strip()}" + (f"_which_leads_to_{cons.strip()}" if cons.strip() else "")
                     lines[i] = indent + newt + "".join(f"|{k}:{vv}" for k, vv in tkv.items())
-                elif rule == "owner_verbatim_without_evidence":
+                elif rule in ("owner_verbatim_without_evidence", "owner_verbatim_without_transcript"):
                     if kind in ("A", "TA"):
                         lines[i] = _set_trait_kv(raw, "by", "owner_claimed")
                     else:
@@ -3809,9 +4262,12 @@ def main(argv=None) -> int:
     p.add_argument("--lang", choices=("auto", "zh", "en"), default="auto", help="速查卡与开场句的语言；auto 按交接单判断（中文占比 >= 0.2 取 zh）；有 rules/GRAMMAR-CARD.<lang>.md 就用它")
     p.add_argument("--with-values", action="store_true", help="3.0：账本行带上值（默认不带；贴给没有工具的聊天模型用不上值）")
 
-    lg = sub.add_parser("ledger", help="3.0 授权账本 env/ledger.env：list / add / verify / show")
-    lg.add_argument("action", choices=("list", "add", "verify", "show"))
+    lg = sub.add_parser("ledger", help="3.0 授权账本 env/ledger.env：list / add / verify / show；3.1 encode / decode / harvest / reveal")
+    lg.add_argument("action", choices=("list", "add", "verify", "show", "encode", "decode", "harvest", "reveal"))
     lg.add_argument("name", nargs="?", help="行名；verify 可用 all")
+    lg.add_argument("--path", action="append", dest="paths", help="harvest：只收这些路径（默认 memory soul handoff）")
+    lg.add_argument("--pepper", help="decode：env/pepper 丢了时用 owner 留的十六进制")
+    lg.add_argument("--grant", choices=("once", "standing"), help="add：授权档，默认顶门 once 其他 standing")
     lg.add_argument("--repo", default=str(default_repo))
     lg.add_argument("--door", help="add：这把钥匙开哪扇门（机器 API 仓库 账户）")
     lg.add_argument("--kind", help="add：种类，例如 ssh_password api_key token root payment")
@@ -3831,6 +4287,14 @@ def main(argv=None) -> int:
     ul.add_argument("--scope", help="接手方声明的范围标签")
     ul.add_argument("--code", help="顶门的一次性码")
     ul.add_argument("--no-log", action="store_true")
+
+    gr = sub.add_parser("grant", help="3.1 授权记在本机 git config：grant <DOOR> | --all | --write；--revoke 收回；--list 查看")
+    gr.add_argument("door", nargs="?")
+    gr.add_argument("--repo", default=str(default_repo))
+    gr.add_argument("--all", action="store_true", help="本机放行所有 standing 门（顶门与 once 门除外）")
+    gr.add_argument("--write", action="store_true", help="本机允许存新钥匙（ledger add --value / harvest / migrate-cc）")
+    gr.add_argument("--revoke", action="store_true")
+    gr.add_argument("--list", action="store_true")
 
     ot = sub.add_parser("otp", help="3.0 一次性码（顶门）：issue / revoke / list；owner 在场时发")
     ot.add_argument("action", choices=("issue", "revoke", "list"))
@@ -3873,11 +4337,12 @@ def main(argv=None) -> int:
     pv.add_argument("--commit", action="store_true", help="改完提交")
     pv.add_argument("--transcript", help="宿主转录（Claude Code JSONL）：只有出现在 user 消息里的引文算 owner_verbatim 证据")
 
-    ev = sub.add_parser("evidence", help="3.0 证据：add 把 owner 原话记进 soul/evidence.md 并给出 q；q 只算哈希")
-    ev.add_argument("action", choices=("add", "q"))
+    ev = sub.add_parser("evidence", help="3.0 证据：add 记进 soul/evidence.md 并给出 q（3.1 默认 owner_claimed，--transcript 命中才 owner_verbatim）；confirm <q> owner 本人确认；q 只算哈希")
+    ev.add_argument("action", choices=("add", "q", "confirm"))
     ev.add_argument("text", nargs="?")
     ev.add_argument("--repo", default=str(default_repo))
     ev.add_argument("--where", help="原话在哪说的（会话、日期、文件）")
+    ev.add_argument("--transcript", help="宿主转录（Claude Code JSONL）；原话是其中一条 user 消息才记 owner_verbatim")
 
     rv = sub.add_parser("review", help="3.0 同一道门：按来源规则审 soul/ memory/ handoff/ 的改动（--staged 给 pre-commit 用）")
     rv.add_argument("files", nargs="*")
@@ -3937,7 +4402,8 @@ def main(argv=None) -> int:
         return cmd_ledger(Path(args.repo).resolve(), args.action, args.name,
                           {"door": args.door, "kind": args.kind, "value": args.value, "ref": args.ref, "verify": args.verify,
                            "recover": args.recover, "scope": args.scope, "why": args.why, "top": args.top,
-                           "with_value": args.with_value, "timeout": args.timeout})
+                           "with_value": args.with_value, "timeout": args.timeout, "paths": args.paths, "pepper": args.pepper,
+                           "grant": args.grant})
     if args.cmd == "unlock":
         return cmd_unlock(Path(args.repo).resolve(), args.name, args.scope, args.code, args.no_log)
     if args.cmd == "otp":
@@ -3959,7 +4425,10 @@ def main(argv=None) -> int:
         return cmd_provenance(Path(args.repo).resolve(), args.action, args.date, args.commit,
                               Path(args.transcript).resolve() if args.transcript else None)
     if args.cmd == "evidence":
-        return cmd_evidence(Path(args.repo).resolve(), args.action, args.text, args.where)
+        return cmd_evidence(Path(args.repo).resolve(), args.action, args.text, args.where,
+                            Path(args.transcript).resolve() if args.transcript else None)
+    if args.cmd == "grant":
+        return cmd_grant(Path(args.repo).resolve(), args.door, args.all, args.write, args.revoke, args.list)
     if args.cmd == "review":
         return cmd_review(Path(args.repo).resolve(), args.files, args.staged, args.fix)
     if args.cmd == "import":
