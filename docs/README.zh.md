@@ -6,7 +6,7 @@
 </picture>
 
 > **Mem-Forever · 跨会话 · 跨模型 · 跨工具**
-> 基于 iLang 协议构建的 AI 持久记忆层。一个私有 Git 仓库就是 Agent 的大脑：画像、一文件一记忆、一张写着「做到哪了」的交接单，以及一个加密的钥匙包。**2.1：这页 README 就是工程书。把它整页复制给任何 AI Agent，Agent 就能照着执行。**
+> 基于 iLang 协议构建的 AI 持久记忆层。一个私有 Git 仓库就是 Agent 的大脑：画像、一文件一记忆、一张写着「做到哪了」的交接单，以及一本写着每扇门的账本。**3.0：这页 README 就是工程书。把它整页复制给任何 AI Agent，Agent 就能照着执行。**
 
 [![License](https://img.shields.io/badge/license-MIT-d4a858?style=flat-square)](../LICENSE)
 [![Protocol](https://img.shields.io/badge/protocol-iLang_v5.0-d4a858?style=flat-square)](https://ilang.ai)
@@ -140,7 +140,7 @@ python -X utf8 tools/brain.py handoff review returned.md --overlay --out candida
 
 `BRAIN.md` 是带连接器的对话 AI 最先读的八条入口，控制在接收方分词器约 400 token 以内（§5）。
 
-**在别的项目里干活？** 一句话恢复全部上下文：*「我的大脑仓库在 `https://github.com/YOU/brain`，先读那里的 `BRAIN.md`，再回来。」* 访问权限走 Agent 自己的连接器（GitHub 应用、Drive）或本地 clone。永远不要把 token 贴进提示词；钥匙走 `vault/`，见 [docs/VAULT.md](VAULT.md)。
+**在别的项目里干活？** 一句话恢复全部上下文：*「我的大脑仓库在 `https://github.com/YOU/brain`，先读那里的 `BRAIN.md`，再回来。」* 访问权限走 Agent 自己的连接器（GitHub 应用、Drive）或本地 clone。永远不要把 token 贴进提示词；钥匙是账本里的一行（`env/ledger.env`，见 [docs/LEDGER.md](LEDGER.md)），工作走到哪扇门，钥匙才到 Agent 手里。
 
 **多个项目？** 再用一次模板：`brain-work`、`brain-research`、`brain-client-x`。每个仓库是一份独立的记忆。同一个引擎，不同的上下文。
 
@@ -210,7 +210,7 @@ A:无信号的冗长⇒浪费
 
 `--validator <ilang_grammar_validator.py 路径>` 顺带对候选跑正典语法校验。`--overlay` 给只含改动块的候选用，网页聊天交回来的就是这种：工具把这些块按标识叠到基线上，基线其余部分原样带入，审的是拼好的整份；`--out <文件>` 把整份写出来。接受就是把接受的整份存成 `CURRENT.md`，提交 `handoff: accept from <谁>`；上一版留在 git 历史里。语法过了不等于真：键数只是完整性检查，证据是记录在案的主人原话或观察到的工具结果。
 
-### 4.5 记忆、灵魂、钥匙包
+### 4.5 记忆、灵魂、账本
 
 - **一条记忆一个文件**，放 `memory/`，带 `type` frontmatter（`user`、`feedback`、`project`、`reference`），`memory/MEMORY.md` 里加一行索引。追加或合并，不覆盖；存模式不存事件；日期写绝对值；一文件 200 行，超了把最旧的折成一段摘要。每次改动单独一个提交，立刻推送。
 - **`soul/soul.md`** 是主人的画像：`::STATE{@OWNER…}`、每个方面一个 `::GENE{}`（`T:` 特征、`A:` 反模式）、`::FACT{}`、`::BOUNDARY{}`。一个行为见三次升 `confirmed`；一次明确拒绝加一条 `A:`；tentative 的特征三十天没见到就删；两条矛盾的特征用 `when:` 按场景拆开。边界不拆，也永远不挂 `when:`。

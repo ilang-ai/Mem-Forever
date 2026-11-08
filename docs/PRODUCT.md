@@ -16,7 +16,7 @@ People who run AI agents and want the agent to remember them across sessions, to
 
 ## Product purpose
 
-Keep a person's memory in their own private Git repository as small Markdown files an agent can read and write: a profile, one file per memory, a hand-off note that says what was done, what comes next and what is unverified, and an age-encrypted vault for keys. Let the next session, in any tool, pick up where the last one stopped.
+Keep a person's memory in their own private Git repository as small Markdown files an agent can read and write: a profile, one file per memory, a hand-off note that says what was done, what comes next and what is unverified, and a ledger of every door it can open, a key reaching it only when the work reaches that door. Let the next session, in any tool, pick up where the last one stopped.
 
 ## Positioning
 

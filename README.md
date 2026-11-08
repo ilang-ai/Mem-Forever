@@ -167,7 +167,7 @@ python -X utf8 tools/brain.py handoff review returned.md --overlay --out candida
 
 `BRAIN.md` is the eight-point entry a chat AI with a connector reads first; it is kept under about 400 tokens on the receiving model's tokenizer (§5).
 
-**Working on a different project?** One sentence restores full context: *"My brain repo is at `https://github.com/YOU/brain`. Read `BRAIN.md` there, then come back here."* Give the agent access through its own connector (GitHub app, Drive) or a local clone. Never paste a token into a prompt; keys travel in `vault/`, see [docs/VAULT.md](docs/VAULT.md).
+**Working on a different project?** One sentence restores full context: *"My brain repo is at `https://github.com/YOU/brain`. Read `BRAIN.md` there, then come back here."* Give the agent access through its own connector (GitHub app, Drive) or a local clone. Never paste a token into a prompt; keys are rows of the ledger (`env/ledger.env`, [docs/LEDGER.md](docs/LEDGER.md)) and reach the agent only when the work reaches their door.
 
 **Multiple projects?** Use the template again: `brain-work`, `brain-research`, `brain-client-x`. Each repo is an independent memory. Same engine, different context.
 
