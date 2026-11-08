@@ -1,0 +1,9 @@
+#!/bin/sh
+# Mem-Forever 3.0: every writer passes the same gate. Reviews staged soul/ memory/ handoff/ files against HEAD
+# with the source rules, then runs check. Installed by brain.py install (core.hooksPath tools/hooks).
+set -u
+PY="${BRAIN_PYTHON:-python}"
+command -v "$PY" >/dev/null 2>&1 || PY=python3
+"$PY" -X utf8 tools/brain.py review --staged || { echo "pre-commit: review rejected the change; nothing committed"; exit 1; }
+"$PY" -X utf8 tools/brain.py check || { echo "pre-commit: check failed; nothing committed"; exit 1; }
+exit 0

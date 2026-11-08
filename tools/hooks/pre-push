@@ -1,0 +1,30 @@
+#!/bin/sh
+# Mem-Forever 3.0 push guard: the brain is private. A push that carries soul/ memory/ handoff/ env/ log/ pair/ or log.md
+# goes only to a remote that is private. GitHub and Gitee are checked through their API (brain.py remote-check);
+# a remote the check cannot read needs a one-time confirmation: git config --bool brain.allowPush.<remote> true
+set -u
+remote="$1"; url="$2"
+PATTERN='^(soul|memory|handoff|vault|env|log|pair|projects|mirror|\.ilang)/|^log\.md$'
+ZEROS="0000000000000000000000000000000000000000"
+carries=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -n "${local_sha:-}" ] || continue
+  if [ "$remote_sha" = "$ZEROS" ]; then base="$(git rev-parse "${local_sha}^" 2>/dev/null || echo "")"; else base="$remote_sha"; fi
+  [ -n "$base" ] || { carries=1; continue; }
+  files="$(git diff --name-only "$base" "$local_sha" 2>/dev/null)" || continue
+  if printf '%s\n' "$files" | grep -qE "$PATTERN"; then carries=1; fi
+done
+[ "$carries" = "1" ] || exit 0
+if [ "$(git config --bool "brain.allowPush.$remote" 2>/dev/null)" = "true" ]; then exit 0; fi
+PY="${BRAIN_PYTHON:-python}"
+command -v "$PY" >/dev/null 2>&1 || PY=python3
+"$PY" -X utf8 tools/brain.py remote-check "$url"
+rc=$?
+if [ "$rc" = "0" ]; then exit 0; fi
+if [ "$rc" = "1" ]; then
+  echo "push guard: $url is PUBLIC; this push carries private memory. Push cancelled."
+  exit 1
+fi
+echo "push guard: cannot tell whether $url is private. If it is your own private repository, confirm once:"
+echo "  git config --bool brain.allowPush.$remote true"
+exit 1
