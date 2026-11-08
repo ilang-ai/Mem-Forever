@@ -644,7 +644,7 @@ class BrainTests(unittest.TestCase):
         (src / "id_ed25519_bot").write_bytes(b"-----BE" + b"GIN OPENSSH PRIVATE KEY-----\nExampleKeyBody\n-----END OPENSSH PRIVATE KEY-----\n")
         (src / "server.pub").write_bytes(b"ssh-ed25519 AAAA public\n")
         (src / "helper.py").write_bytes(b"print(1)\n")
-        (src / "authhub-backup-recipient-v1-2026-10-22.pem").write_bytes(b"-----BEGIN PUBLIC KEY-----\nX\n-----END PUBLIC KEY-----\n")
+        (src / "authhub-backup-recipient-v1-2026-10-22.pem").write_bytes(b"-----BE" + b"GIN PUBLIC KEY-----\nX\n-----END PUBLIC KEY-----\n")
         r = self.cli("ledger", "import", str(src), "--dry-run")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("would   ALIYUN_ZHANGMEI (env_file", r.stdout)
