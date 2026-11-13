@@ -21,6 +21,8 @@ jobs:
         run: python -X utf8 tools/brain.py instructions check
       - name: behavior tests (ledger, unlock, recognize, provenance, review, import, verify, paste)
         run: python -X utf8 tools/test_brain.py
+      - name: the Hermes memory provider (stubbed Hermes, temporary brain)
+        run: python -X utf8 hermes/test_hermes_plugin.py
       - name: hook scripts parse
         run: |
           sh -n tools/hooks/pre-commit

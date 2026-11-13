@@ -160,6 +160,7 @@ python -X utf8 tools/brain.py handoff review returned.md --overlay --out candida
 | Codex | `AGENTS.md` | Open repo, start working |
 | Copilot | `.github/copilot-instructions.md` | Open repo, start working |
 | Gemini CLI | `GEMINI.md` | Open repo, start working |
+| Hermes Agent | memory provider plugin | `hermes plugins install mem-forever`, then `hermes memory setup`: the plugin reads `BRAIN.md`, the hand-off, the soul and the index at session start, logs your words, saves and pushes at every milestone ([hermes/](hermes/README.md)) |
 | ChatGPT | Custom instructions + connector | Paste `BRAIN.md`; connect the repo (GitHub) or a Drive mirror |
 | Claude.ai | Project instructions + connector | Paste `BRAIN.md`; connect the repo with the GitHub connector |
 | Gemini web | Gem instructions + Drive | Paste `BRAIN.md`; mirror the repo to Drive |

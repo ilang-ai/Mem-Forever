@@ -133,6 +133,7 @@ python -X utf8 tools/brain.py handoff review returned.md --overlay --out candida
 | Codex | `AGENTS.md` | 打开仓库直接干活 |
 | Copilot | `.github/copilot-instructions.md` | 打开仓库直接干活 |
 | Gemini CLI | `GEMINI.md` | 打开仓库直接干活 |
+| Hermes Agent | 记忆提供者插件 | `hermes plugins install mem-forever`，再 `hermes memory setup`：插件开场读 `BRAIN.md`、交接单、灵魂与索引，记下你的原话，每个里程碑提交推送（[hermes/](../hermes/README.md)） |
 | ChatGPT | 自定义指令 + 连接器 | 贴 `BRAIN.md`；连仓库（GitHub）或 Drive 镜像 |
 | Claude.ai | 项目说明 + 连接器 | 贴 `BRAIN.md`；用 GitHub 连接器连仓库 |
 | Gemini 网页 | Gem 指令 + Drive | 贴 `BRAIN.md`；把仓库镜像到 Drive |

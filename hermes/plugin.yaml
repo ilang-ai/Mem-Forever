@@ -1,0 +1,15 @@
+name: mem-forever
+version: 3.2.0
+description: "Mem-Forever: your private Git repository is the agent's brain. Profile, one file per memory, a hand-off note that says where you stopped, the owner's words verbatim, a ledger of doors; the same repository every other AI tool reads."
+author: iLang Inc.
+license: MIT
+homepage: https://github.com/ilang-ai/Mem-Forever
+requires_hermes: ">=0.23.0"
+manifest_version: 2
+tags: [memory, cross-tool, portable, handoff, git, ilang]
+config_keys:
+  - memory.mem-forever
+external_dependencies:
+  - name: git
+    install: "https://git-scm.com/downloads"
+    check: "git --version"
