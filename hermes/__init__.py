@@ -8,12 +8,19 @@ brain every other tool reads:
 
 - session start: saves what a previous session left unsaved, pulls the brain, then
   injects ``BRAIN.md`` (system prompt) and the hand-off, soul and index (first prefetch);
-- each turn: appends the owner's words to ``log/`` through ``tools/brain.py`` (background);
+- each turn: appends the owner's words to ``log/`` through the engine (background);
 - before compression and at session end: commits and pushes ``soul/ memory/ handoff/ log/``
   and hands the ``::PROGRESS`` line to the summary;
-- one tool, ``mem_forever``, runs the engine (status, check, ledger_verify, unlock,
-  handoff_review, recognize, log, commit, pull). Files are edited with Hermes's own
-  file tools; this provider never rewrites a memory.
+- one tool, ``mem_forever``, runs the engine (status, check, unlock, handoff_review,
+  recognize, log, commit, pull). Files are edited with Hermes's own file tools; this
+  provider never rewrites a memory.
+
+The engine is ``engine/brain.py`` of this plugin directory, the template's ``tools/brain.py``
+at this version byte for byte, run with the brain as ``--repo``: the brain's own copy of
+``tools/brain.py``, which ``git pull`` and the template's upstream sync can change, is never
+executed by the provider. git and the engine get a minimal environment (PATH, HOME, locale,
+``GIT_*``, ``SSH_*``, ``GPG_*``, proxies, ``BRAIN_*``), not Hermes's provider keys. Ledger
+verification, which runs each row's own ``verify`` command, is not a model action.
 
 Nothing leaves the machine except git traffic to the brain's own remote. The provider
 holds no credentials: the ledger lives in the brain, encoded at rest (reversible, not
@@ -39,7 +46,7 @@ from agent.memory_provider import MemoryProvider, RecallStatus, spawn_context_th
 logger = logging.getLogger(__name__)
 
 NAME = "mem-forever"
-VERSION = "3.2.0"
+VERSION = "3.2.1"
 TEMPLATE = "https://github.com/ilang-ai/Mem-Forever"
 LABEL = "Mem-Forever"
 
@@ -48,13 +55,28 @@ ENTRY_FILES = ("handoff/CURRENT.md", "soul/soul.md", "soul/agent.md", "memory/ME
 # What a session leaves behind and the next one must save (README §4.2 step 2).
 SAVE_PATHS = ("soul", "memory", "handoff", "log", "log.md")
 
+# The engine the provider runs: this plugin's pinned copy of the template's tools/brain.py.
+ENGINE = Path(__file__).resolve().parent / "engine" / "brain.py"
+
+# What git and the engine see of Hermes's environment: the user's PATH, home, locale, git, ssh and
+# gpg settings, proxies and BRAIN_* variables. Provider API keys and the rest stay with Hermes.
+_ENV_KEEP = frozenset({
+    "PATH", "HOME", "USER", "LOGNAME", "TERM", "TZ", "TMPDIR", "LANG", "LANGUAGE",
+    "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR", "GNUPGHOME", "SSL_CERT_FILE", "SSL_CERT_DIR",
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+    # Windows: Python and git do not start, or do not find the user's git config and credentials, without these
+    "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "PATHEXT", "USERPROFILE", "HOMEDRIVE", "HOMEPATH",
+    "USERNAME", "USERDOMAIN", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "ALLUSERSPROFILE",
+    "PROGRAMFILES", "PROGRAMFILES(X86)", "PROGRAMW6432", "COMMONPROGRAMFILES", "TEMP", "TMP",
+})
+_ENV_PREFIXES = ("GIT_", "SSH_", "GPG_", "LC_", "BRAIN_")
+
 _ENGINE_TIMEOUT = 60
-_VERIFY_TIMEOUT = 180
 _GIT_TIMEOUT = 90
 _MAX_INDEX_CHARS = 40_000
 _MAX_BUNDLE_CHARS = 90_000
 
-_ACTIONS = ("status", "check", "ledger_verify", "unlock", "handoff_review", "recognize", "log", "commit", "pull")
+_ACTIONS = ("status", "check", "unlock", "handoff_review", "recognize", "log", "commit", "pull")
 _WRITE_ACTIONS = {"log", "commit", "pull"}
 
 TOOL_SCHEMA = {
@@ -62,9 +84,9 @@ TOOL_SCHEMA = {
     "description": (
         "Run the Mem-Forever engine on the brain repository named in the system prompt. Actions: "
         "status (HEAD, remote, unsaved files, the ::PROGRESS line); check (brain.py check: 0 errors expected); "
-        "ledger_verify (which doors open; name a row or 'all'); unlock (print one ledger row into this "
-        "context: refused unless a next item names its door and this machine holds the owner's grant, a top "
-        "door also needs the owner's one-time code); handoff_review (compare a candidate hand-off file with "
+        "unlock (print one ledger row into this context: refused unless a next item names its door and this "
+        "machine holds the owner's grant, a top door also needs the owner's one-time code); handoff_review "
+        "(compare a candidate hand-off file with "
         "handoff/CURRENT.md before it may replace it); recognize (match the owner's recent words in log/ "
         "against the soul anchors); log (append text to today's log as the agent, kind decision|lesson|note); "
         "commit (commit and push soul/ memory/ handoff/ log/ with a message: do this at every milestone); "
@@ -75,7 +97,7 @@ TOOL_SCHEMA = {
         "type": "object",
         "properties": {
             "action": {"type": "string", "enum": list(_ACTIONS)},
-            "name": {"type": "string", "description": "unlock: the door; ledger_verify: a row name or 'all' (default all)"},
+            "name": {"type": "string", "description": "unlock: the door"},
             "path": {"type": "string", "description": "handoff_review: the candidate file"},
             "text": {"type": "string", "description": "log: the text to append; commit: the commit message"},
             "kind": {"type": "string", "description": "log: decision, lesson, note, ... (default note)"},
@@ -182,6 +204,11 @@ class MemForeverProvider(MemoryProvider):
         self._repo = self._resolve_repo(self._hermes_home)
         self._injected = False
         self._current_sig = ""
+        if not ENGINE.is_file():
+            self._ready = False
+            self._reason = f"the plugin's engine is missing: {ENGINE}"
+            logger.warning("mem-forever: %s", self._reason)
+            return
         if not _is_brain(self._repo):
             remote = str(self._conf().get("remote") or "").strip()
             if remote and not self._repo.exists():
@@ -229,7 +256,7 @@ class MemForeverProvider(MemoryProvider):
             f"# {LABEL} brain\n"
             f"Repository: {self._repo}\n"
             "Read and edit its files with the normal file tools; `mem_forever` runs the engine "
-            "(status, check, ledger_verify, unlock, handoff_review, recognize, log, commit, pull). "
+            "(status, check, unlock, handoff_review, recognize, log, commit, pull). "
             "Hermes saves soul/ memory/ handoff/ log/ before compression and at session end; "
             "at a milestone, save yourself with mem_forever(action=\"commit\")."
         )
@@ -367,8 +394,6 @@ class MemForeverProvider(MemoryProvider):
             return payload
         if action == "check":
             return self._engine("check")
-        if action == "ledger_verify":
-            return self._engine("ledger", "verify", str(args.get("name") or "all"), timeout=_VERIFY_TIMEOUT)
         if action == "unlock":
             door = str(args.get("name") or "").strip()
             if not door:
@@ -490,7 +515,10 @@ class MemForeverProvider(MemoryProvider):
     # -- subprocesses --------------------------------------------------------------------------
 
     def _env(self) -> dict[str, str]:
-        env = dict(os.environ)
+        """The environment handed to git and the engine: PATH, home, locale, git/ssh/gpg settings, proxies
+        and ``BRAIN_*`` (``_ENV_KEEP``, ``_ENV_PREFIXES``). Nothing else of Hermes's environment, so no
+        provider key reaches the engine, git, or the hooks a brain repository installs."""
+        env = {k: v for k, v in os.environ.items() if k in _ENV_KEEP or k.startswith(_ENV_PREFIXES)}
         env.setdefault("GIT_TERMINAL_PROMPT", "0")
         env.setdefault("GIT_SSH_COMMAND", "ssh -o BatchMode=yes")
         env["PYTHONIOENCODING"] = "utf-8"
@@ -499,10 +527,11 @@ class MemForeverProvider(MemoryProvider):
         return env
 
     def _engine(self, *args: str, text: Optional[str] = None, timeout: int = _ENGINE_TIMEOUT) -> dict[str, Any]:
-        """Run ``tools/brain.py`` of the brain; ``text`` feeds stdin (``-`` arguments read it)."""
+        """Run the plugin's engine (``engine/brain.py``) on the brain (``--repo``); ``text`` feeds stdin
+        (``-`` arguments read it). The brain's own ``tools/brain.py`` is never executed."""
         if self._repo is None:
             return {"ok": False, "error": "no brain bound"}
-        cmd = [sys.executable, "-X", "utf8", str(self._repo / "tools" / "brain.py"), *args]
+        cmd = [sys.executable, "-X", "utf8", str(ENGINE), *args, "--repo", str(self._repo)]
         run_kwargs: dict[str, Any] = {"input": text} if text is not None else {"stdin": subprocess.DEVNULL}
         try:
             with self._lock:
@@ -511,7 +540,7 @@ class MemForeverProvider(MemoryProvider):
                     errors="replace", timeout=timeout, env=self._env(), check=False, **run_kwargs,
                 )
         except subprocess.TimeoutExpired:
-            return {"ok": False, "error": f"brain.py {args[0]} timed out after {timeout}s"}
+            return {"ok": False, "error": f"engine {args[0]} timed out after {timeout}s"}
         except OSError as exc:
             return {"ok": False, "error": str(exc)}
         out = (proc.stdout or "").strip()

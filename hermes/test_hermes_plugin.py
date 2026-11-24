@@ -147,6 +147,8 @@ def main() -> int:
            "register() registers the mem-forever skill from the plugin directory")
         root_skill = (ROOT / "skills" / "mem-forever" / "SKILL.md").read_bytes()
         ok(recorded["skill"][1].read_bytes() == root_skill, "the plugin's SKILL.md is byte-identical to skills/mem-forever/SKILL.md")
+        ok((HERE / "engine" / "brain.py").read_bytes() == ENGINE.read_bytes(),
+           "hermes/engine/brain.py, the engine the plugin runs, is byte-identical to tools/brain.py")
 
         # availability and binding
         provider = plugin.MemForeverProvider({"repo": str(brain)})
@@ -172,6 +174,8 @@ def main() -> int:
         ok("CURRENT.md changed on disk" in provider.prefetch("next"), "a changed CURRENT.md is handed over again")
         tools = provider.get_tool_schemas()
         ok(len(tools) == 1 and tools[0]["name"] == "mem_forever", "one tool, mem_forever")
+        ok("ledger_verify" not in tools[0]["parameters"]["properties"]["action"]["enum"],
+           "ledger_verify is not a model action")
 
         # the owner's words go to log/ verbatim, in the background
         provider.sync_turn("Decide: the plugin ships tonight, not tomorrow.", "Noted.", session_id="session-0001")
@@ -191,6 +195,23 @@ def main() -> int:
            "status lists the unsaved log and hand-off")
         check = json.loads(provider.handle_tool_call("mem_forever", {"action": "check"}))
         ok(check.get("ok") and "0 errors" in check.get("output", ""), "check runs brain.py check: 0 errors")
+        # the engine that runs is the plugin's pinned copy, never the brain's own tools/brain.py
+        brain_copy = brain / "tools" / "brain.py"
+        original = brain_copy.read_bytes()
+        brain_copy.write_text("import sys\nsys.stderr.write('the brain copy ran')\nsys.exit(99)\n", encoding="utf-8")
+        try:
+            check2 = json.loads(provider.handle_tool_call("mem_forever", {"action": "check"}))
+        finally:
+            brain_copy.write_bytes(original)
+        ok(check2.get("ok") and check2.get("exit") == 0 and "the brain copy ran" not in json.dumps(check2),
+           "a tampered tools/brain.py in the brain is never executed: the plugin runs hermes/engine/brain.py")
+        refused_verify = json.loads(provider.handle_tool_call("mem_forever", {"action": "ledger_verify", "name": "all"}))
+        ok("error" in refused_verify, "ledger_verify is refused as an unknown action")
+        os.environ["MEM_FOREVER_TEST_PROVIDER_KEY"] = "not-for-the-engine"
+        os.environ["BRAIN_TEST_MARK"] = "kept"
+        env = provider._env()
+        ok("MEM_FOREVER_TEST_PROVIDER_KEY" not in env and env.get("BRAIN_TEST_MARK") == "kept" and "PATH" in env,
+           "git and the engine get a minimal environment: PATH and BRAIN_* kept, a provider key dropped")
         logged = json.loads(provider.handle_tool_call("mem_forever", {"action": "log", "text": "lesson: test first", "kind": "lesson"}))
         ok(logged.get("ok") and "lesson: test first" in log_file.read_text(encoding="utf-8"), "log appends the agent's lesson")
         bad = json.loads(provider.handle_tool_call("mem_forever", {"action": "fly"}))

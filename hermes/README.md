@@ -28,25 +28,26 @@ Hermes keeps one external memory provider active at a time; selecting this one r
 |---|---|
 | Session start | Commits what a previous session left unsaved under `soul/ memory/ handoff/ log/`, pulls the brain from its remote, and puts `BRAIN.md` in the system prompt. |
 | First turn | Hands the model `handoff/CURRENT.md`, `soul/soul.md`, `soul/agent.md` and the index `memory/MEMORY.md`. A file under `memory/` is opened by the model only when the task needs it. Later turns get `CURRENT.md` again only if it changed on disk. |
-| Each turn | Appends your message to `log/YYYY-MM-DD.md` through `tools/brain.py log owner`, in the background, verbatim. The assistant's words are not logged. |
+| Each turn | Appends your message to `log/YYYY-MM-DD.md` through the engine (`brain.py log owner`), in the background, verbatim. The assistant's words are not logged. |
 | A write through Hermes's built-in memory tool | Leaves a trace in the brain's log, so nothing is remembered in one place only. |
 | Before compression | Commits and pushes the four directories, and hands the `::PROGRESS{date\|done\|next\|unverified}` line to the summary so the hand-off survives. |
 | Session end | Commits and pushes the four directories. |
 | Subagent or cron run | Reads the brain, never writes to it. |
 
-One tool, `mem_forever`, runs the engine that ships inside the brain (`tools/brain.py`):
+One tool, `mem_forever`, runs the engine that ships inside this plugin, `engine/brain.py` (the template's `tools/brain.py` at this version, byte for byte), with your brain repository as its data (`--repo`). The brain's own `tools/brain.py` is never executed by the plugin:
 
 | Action | What it runs |
 |---|---|
 | `status` | HEAD, remote, unsaved files, the `::PROGRESS` line, `brain.py status --json` |
 | `check` | `brain.py check`: layout, grammar, secret-like strings; 0 errors expected |
-| `ledger_verify` | `brain.py ledger verify <row|all>`: which doors open today |
 | `unlock` | `brain.py unlock <door>`: prints one ledger row into the context, only when a `next` item names its door and this machine holds the owner's grant; a top door also needs the owner's one-time code |
 | `handoff_review` | `brain.py handoff review <candidate>`: a hand-off another model wrote is compared block by block with `CURRENT.md` before it may replace it (clean, rejected, or for the owner) |
 | `recognize` | `brain.py recognize --json`: the owner's recent words against the soul anchors |
 | `log` | `brain.py log agent --kind <kind>`: the agent's own decision or lesson, dated |
 | `commit` | commits and pushes `soul/ memory/ handoff/ log/`; do it at every milestone |
 | `pull` | `git pull --rebase` from the brain's remote |
+
+Ledger verification (`brain.py ledger verify`, which runs each row's own `verify` command) is not a model action: you run it in a terminal.
 
 Memories, the soul and the hand-off are edited with Hermes's normal file tools, as the protocol says: one memory per file with a `type` frontmatter, one index line, `::PROGRESS` updated at every milestone, not at session end. The plugin never rewrites a memory on its own.
 
@@ -64,14 +65,14 @@ No API key, no token, no environment variable. The plugin reads nothing from `.e
 
 ## What to know before you install
 
-- **Shell commands.** The plugin runs `git` and `python -X utf8 tools/brain.py` inside your brain repository: `git status`, `add`, `commit`, `pull --rebase`, `push`, and `clone` once if you gave a remote. Commits use the git identity configured on this machine; if none is set, the commit fails and the files stay unsaved on disk until you set one.
+- **Shell commands.** The plugin runs `git` and `python -X utf8 engine/brain.py --repo <brain>` (its own pinned copy of the engine) against your brain repository: `git status`, `add`, `commit`, `pull --rebase`, `push`, and `clone` once if you gave a remote. A commit runs the hooks your brain repository installed under `tools/hooks/` (the protocol's review gate), as any git commit does. git and the engine get a minimal environment: PATH, HOME, locale, `GIT_*`, `SSH_*`, `GPG_*`, proxy and `BRAIN_*` variables; Hermes's provider API keys and the rest of its environment are not passed. Commits use the git identity configured on this machine; if none is set, the commit fails and the files stay unsaved on disk until you set one.
 - **Network.** The only network traffic is git to the remote of your own brain repository. No service of ours or anyone else's is called. Prompts and transcripts are not sent anywhere by this plugin.
 - **What is written where.** Your messages, as Hermes hands them to memory providers (secrets already redacted by Hermes), are appended verbatim to `log/` in your private repository. In a shared gateway chat the user side of a turn can be someone else's words; messages flagged as a bot's are skipped, others are not told apart.
-- **Keys.** The plugin stores no credentials and asks Hermes for none. The brain's ledger lives in your private repository, encoded at rest (reversible, not encryption, by design: a key is replaceable, a lockout is not). The `unlock` action prints one ledger row into the model's context, and only when the engine's own rules allow it: the door is named by a `next` item, this machine holds the owner's grant (`brain.py grant`), and a top door has the owner's one-time code. Nothing is printed otherwise.
+- **Keys.** The plugin stores no credentials and asks Hermes for none. The brain's ledger lives in your private repository, encoded at rest (reversible, not encryption, by design: a key is replaceable, a lockout is not). The `unlock` action prints one ledger row into the model's context, and only when the engine's own rules allow it: the door is named by a `next` item, this machine holds the owner's grant (`brain.py grant`), and a top door has the owner's one-time code. Nothing is printed otherwise. Whether a door still opens (`ledger verify`, each row's own command) is checked by you in a terminal, not by the model through this plugin.
 - **Reads outside the plugin's own directory.** The brain repository, at the path you configure.
 - **Single provider.** Hermes allows one external memory provider; `hermes memory setup` switches.
 - **Platform.** Tested on Linux and Windows with git on PATH and the Python that runs Hermes (the engine is standard library only).
 
 ## Source and support
 
-The plugin is the `hermes/` directory of [ilang-ai/Mem-Forever](https://github.com/ilang-ai/Mem-Forever), MIT, version-locked to the template (`3.2.0`). Issues: [ilang-ai/Mem-Forever/issues](https://github.com/ilang-ai/Mem-Forever/issues). Contact: contact@ilang.ai.
+The plugin is the `hermes/` directory of [ilang-ai/Mem-Forever](https://github.com/ilang-ai/Mem-Forever), MIT, version-locked to the template (`3.2.1`). Issues: [ilang-ai/Mem-Forever/issues](https://github.com/ilang-ai/Mem-Forever/issues). Contact: contact@ilang.ai.

@@ -2,6 +2,10 @@
 
 One `## YYYY-MM-DD` section per day, newest first, prose bullets (OKF v0.2 reserved file). Record changes to the layout, rules and tools here. Memories go to `memory/`, progress goes to `handoff/CURRENT.md`.
 
+## 2026-11-24
+
+- Mem-Forever 3.2.1, the Hermes plugin after the catalog review (https://github.com/NousResearch/hermes-agent/pull/155307): the engine the plugin runs is its own pinned copy, `hermes/engine/brain.py` (byte-identical to `tools/brain.py`, checked by the tests and by CI), run with the brain as `--repo`; the brain's own `tools/brain.py`, which `git pull` and the upstream sync can change, is never executed by the plugin. git and the engine get a minimal environment (PATH, HOME, locale, `GIT_*`, `SSH_*`, `GPG_*`, proxies, `BRAIN_*`), not Hermes's provider keys. `ledger_verify` leaves the model tool: a row's `verify` command is the owner's to run in a terminal. 38 scenarios.
+
 ## 2026-11-13
 
 - `hermes/`: the brain as a Hermes Agent memory provider plugin (`hermes plugins install mem-forever`, `hermes memory setup`). At session start it saves what a previous session left under `soul/ memory/ handoff/ log/`, pulls the brain and puts `BRAIN.md` in the system prompt; the first turn gets the hand-off, the soul and the index; the owner's words go to `log/` through `brain.py log owner`; before compression and at session end it commits and pushes the four directories and hands the `::PROGRESS` line to the summary; one tool `mem_forever` runs the engine (status, check, ledger_verify, unlock, handoff_review, recognize, log, commit, pull). Subagent and cron runs read only. `hermes/skills/mem-forever/SKILL.md` is the same skill body; `hermes/test_hermes_plugin.py` runs 33 scenarios in a temporary brain with or without Hermes installed. Version stays 3.2.0.
