@@ -5,6 +5,7 @@ Standard library only. Run: python -X utf8 tools/test_brain.py
 Every test builds its own brain in a temporary directory; nothing touches the user's machine (install is dry-run only)."""
 import importlib.util
 import io
+import json
 import os
 import re
 import shutil
@@ -12,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -725,6 +727,83 @@ class BrainTests(unittest.TestCase):
         r = self.cli("evidence", "confirm", "open_gap")
         self.assertIn("nothing was left, the gap stays open", r.stdout)
         self.assertNotIn("::FACT{key:open_gap", self.read("memory/open.md"))
+
+
+    # ---- 3.3 log import (the owner's words from a DeepSeek export)
+    def _deepseek_zip(self, path, version=3):
+        def msg(i, parent, role, at, frags):
+            return {"id": i, "parent_id": parent, "role": role, "status": "FINISHED", "thinking_enabled": False,
+                    "search_enabled": False, "accumulated_token_usage": 0, "inserted_at": at, "fragments": frags}
+        s1 = {"id": "s1", "title": "t", "pinned": False, "current_message_id": 3,
+              "inserted_at": "2026-11-10T18:30:00Z", "updated_at": "2026-11-11T02:33:23.270Z",
+              "messages": [
+                  msg(1, None, "USER", "2026-11-10T18:30:00Z",
+                      [{"type": "REQUEST", "content": "帮我看这份合同"},
+                       {"type": "FILE", "files": [{"id": "f1", "file_name": "合同.pdf", "file_size": 10, "token_usage": None,
+                                                  "inserted_at": "2026-11-10T18:30:00Z", "export_path": None, "is_image": False,
+                                                  "width": None, "height": None}]}]),
+                  msg(2, 1, "ASSISTANT", "2026-11-10T18:30:05Z",
+                      [{"type": "THINK", "content": "想一想", "elapsed_secs": 1}, {"type": "RESPONSE", "content": "第三条有问题"}]),
+                  msg(3, 2, "USER", "2026-11-11T02:33:23.270Z", [{"type": "REQUEST", "content": "第三条怎么改"}]),
+                  msg(4, 2, "USER", "2026-11-11T02:30:00Z", [{"type": "REQUEST", "content": "第三条怎么改（改掉的问法）"}]),
+              ]}
+        with zipfile.ZipFile(path, "w") as z:
+            z.writestr("manifest.json", json.dumps({"export_format_version": version}))
+            z.writestr("user.json", json.dumps({"email": "x"}))
+            z.writestr("chat_sessions/s1.json", json.dumps(s1, ensure_ascii=False))
+            z.writestr("chat_session_index.json", json.dumps([{"id": "s1", "title": "t", "pinned": False, "message_count": 4,
+                                                               "inserted_at": "2026-11-10T18:30:00Z", "updated_at": "2026-11-11T02:33:23.270Z"}]))
+            z.writestr("chat_sessions/s1_files/f1_x.png", b"\x89PNG")
+
+    def _log_text(self):
+        return "".join(self.read(f"log/{p.name}") for p in sorted((self.repo / "log").glob("*.md")))
+
+    def test_t23_log_import_deepseek_takes_the_kept_branch_once(self):
+        zp = self.tmp / "deepseek_data-2026-11-20.zip"
+        self._deepseek_zip(zp)
+        r = self.cli("log", "owner", str(zp), "--from", "deepseek")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("1 conversation(s), wrote 2 turn(s), 0 already there, 0 without text, 1 edited away, 0 unreadable", r.stdout)
+        d1 = brain._utc_to_local("2026-11-10T18:30:00Z")
+        d3 = brain._utc_to_local("2026-11-11T02:33:23.270Z")
+        self.assertIn(f"::EVENT{{@OWNER, at:{d1:%H:%M}, kind:turn, src:deepseek:s1#1, utc:2026-11-10T18:30:00Z}}\n帮我看这份合同\n[files: 合同.pdf]\n",
+                      self.read(f"log/{d1:%Y-%m-%d}.md"))
+        self.assertIn(f"::EVENT{{@OWNER, at:{d3:%H:%M}, kind:turn, src:deepseek:s1#3, utc:2026-11-11T02:33:23.270Z}}\n第三条怎么改\n",
+                      self.read(f"log/{d3:%Y-%m-%d}.md"))
+        before = self._log_text()
+        for absent in ("改掉的问法", "第三条有问题", "想一想", "email"):
+            self.assertNotIn(absent, before)
+        events = [e for e in brain.log_events(self.repo, since="2000-01-01") if e["who"] == "OWNER"]
+        self.assertEqual([e["text"] for e in events], ["帮我看这份合同\n[files: 合同.pdf]", "第三条怎么改"])
+        self.assertTrue(all(e["kind"] == "turn" for e in events))
+        r = self.cli("log", "owner", str(zp), "--from", "deepseek")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("wrote 0 turn(s), 2 already there", r.stdout)
+        self.assertEqual(before, self._log_text())
+        r = self.cli("check")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_t24_log_import_refuses_a_newer_format_reads_a_directory_and_dry_runs(self):
+        zp = self.tmp / "deepseek_data-2026-11-20.zip"
+        self._deepseek_zip(zp, version=4)
+        r = self.cli("log", "owner", str(zp), "--from", "deepseek")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("newer", r.stdout)
+        self._deepseek_zip(zp)
+        r = self.cli("log", "owner", str(zp), "--from", "deepseek", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("would write 2 turn(s)", r.stdout)
+        self.assertNotIn("src:deepseek", self._log_text())
+        d = self.tmp / "unpacked"
+        with zipfile.ZipFile(zp) as z:
+            z.extractall(d)
+        r = self.cli("log", "owner", str(d), "--from", "deepseek")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("wrote 2 turn(s)", r.stdout)
+        self.assertEqual(self._log_text().count("src:deepseek:s1#"), 2)
+        self.assertEqual(self.cli("log", "owner", str(zp), "--from", "nope").returncode, 2)
+        self.assertEqual(self.cli("log", "agent", str(zp), "--from", "deepseek").returncode, 2)
+        self.assertEqual(self.cli("log", "owner", str(self.tmp / "missing.zip"), "--from", "deepseek").returncode, 2)
 
     def test_remote_parser(self):
         self.assertEqual(brain.parse_remote("https://github.com/ilang-ai/Mem-Forever.git"), ("github.com", "ilang-ai", "Mem-Forever"))

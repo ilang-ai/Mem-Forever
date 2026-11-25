@@ -246,7 +246,7 @@ A hand-off that comes back from another model or another session is a candidate,
 - **`soul/agent.md`** is the agent's own soul, new in 2.1: a persona block the owner gave it, kept verbatim with its version and hash in the frontmatter, and below it what the agent learned with this owner, in `::LESSON{}` and `::GENE{}` blocks it writes at milestones. It never overrides `soul/soul.md` or a boundary.
 - **Keys are where the brain starts.** `env/ledger.env` holds one row per door: what it opens, the value or a `ref:` into `env/keys.env`, a `verify` command, the date it last passed, how to get back in, scope, and `why` it exists. Values rest encoded in this private repository; a key is replaceable, a lockout is not. `brain.py unlock <name>` prints a row into context only when a `next` item names its door; a top door (`root`, `payment`, `registrar`, `dns`, `account_security`, `recovery_code`, `age_identity`) opens only with a one-time code the owner issues. Sealing happens only when pairing (`brain.py pair`), to the receiver's key and the owner's. See [docs/LEDGER.md](docs/LEDGER.md).
 - **Every block says `by:` whose words it rests on**: `owner_verbatim` with `q:` pointing at the owner's words in `soul/evidence.md`, `owner_confirmed`, `agent_inferred`, `imported`, or `legacy` for blocks from before 3.0. Only owner-sourced blocks may create or keep a boundary or an `A:` line; the rest is read as advice and rewritten by `brain.py provenance repair`. Agent-sourced blocks confirm after three distinct days and still decay; owner-sourced blocks never decay and only a tombstone `::DECIDE{@OWNER}{what:retire …}` removes one.
-- **The owner's words go to `log/`**, one file per day, verbatim, never tool output. `brain.py recognize` matches them against the `T:` and `A:` anchors of `soul/soul.md`: thirty percent of the applicable anchors hit and no `done` item touching a boundary, and the person is recognized. It reads the person, not the agent.
+- **The owner's words go to `log/`**, one file per day, verbatim, never tool output. A DeepSeek chat export (`deepseek_data-….zip`) goes in the same way, `brain.py log owner <export> --from deepseek`: the owner's questions on the kept branch of each conversation, dated by the question, `src:` naming conversation and message so a second import adds nothing; the answers are not read (3.3). `brain.py recognize` matches them against the `T:` and `A:` anchors of `soul/soul.md`: thirty percent of the applicable anchors hit and no `done` item touching a boundary, and the person is recognized. It reads the person, not the agent.
 - **Code memory is not kept.** Paths, versions, hashes and what a function does are read from HEAD, which is always newer than memory. What stays is the reasoning HEAD does not hold, and a constant keeps its reasons: `why:` and `used_by:` edges that `brain.py verify` checks; an orphan constant is dead after 90 days.
 - **Transparency.** The agent never says "DNA", "gene", "mutation" or "decay" to the user; it says "I saved some notes" or "I remember from last time". The owner can read, edit or delete any file at any time.
 
@@ -317,6 +317,10 @@ Numbers are from real tokenizers and real conversations, not estimates; dates ar
 ---
 
 ## 6. Versions
+
+### What's new in 3.3
+
+- **A chat export is the owner's words too.** `brain.py log owner <deepseek_data-….zip> --from deepseek` reads DeepSeek's official export (format version 3, the one `deepseek-ai/chat-demo` writes and checks): every conversation's kept branch, the owner's questions only, one `::EVENT{}` each on the day of the question with the UTC stamp and the attachment names kept, `src:` making the import idempotent. The tool does not decrypt anything and reads no one's machine: the owner exports, the owner imports, into the owner's private repository. brain.py 2.3, 45 scenarios.
 
 ### What's new in 3.1
 

@@ -1,7 +1,7 @@
 ---
 name: mem-forever
 description: "Every AI tool forgets you. This one doesn't. Ever. One Git repo is your agent brain: profile, one file per memory, a hand-off note that says where you stopped, and a ledger of the keys that opens every door the brain can enter. Any tool that reads files can use it; a chat AI with no tools gets it pasted. Use this skill at session start to load the brain, at every milestone to save, and before merging a hand-off another model wrote."
-version: 3.2.1
+version: 3.3.0
 author: ilang-ai
 license: MIT
 metadata:
@@ -211,6 +211,8 @@ Nothing is sealed at rest. `brain.py pair <key> --scope …` seals the rows insi
 
 `brain.py log owner "<the owner's words>"` appends the turn verbatim to `log/<date>.md`; `brain.py log agent "<your decision block>"` appends yours. Never tool output. The log is exempt from the secret scan; the push guard keeps the repository private.
 
+`brain.py log owner <deepseek_data-….zip or its directory> --from deepseek` brings the owner's questions from a DeepSeek chat export into `log/` (3.3): one `::EVENT{}` per question on the kept branch of each conversation (the chain from `current_message_id` to the root, so a question the owner edited away stays out), on the day of the question by this machine's clock with the exported UTC stamp kept as `utc:`, attachments named on a `[files: …]` line, `src:` naming the conversation and the message so a second import adds nothing. The answers are not the owner's words and are not read. `--dry-run` only counts. Run it in a terminal; it is the owner's action, not yours.
+
 Recognition reads the person, not you. `brain.py recognize` takes the `T:` and `A:` lines of `soul/soul.md` that rest on the owner's words (`by:owner_*` or `by:legacy`), each with `words:` the owner actually uses, and matches them against the owner's turns in the window. An anchor is applicable when its words occur; it hits when the turn matches the trait or avoids the anti-pattern. Thirty percent of the applicable anchors hit and no `done` item touching a boundary: recognized. The threshold is low on purpose; a person is not self-consistent, and a high threshold locks the owner out first. Recognition proves that the work is being continued, not who holds the repository; `unlock` never reads it. The `words:` of an anchor are the owner's own words, the ones you never write yourself, not topic words: topic words recognize whoever talks about the same work.
 
 ## Provenance (by:)
@@ -275,9 +277,9 @@ Do NOT batch multiple changes into one commit. Each save is its own commit. If u
 
 If push fails (auth, network), tell user: "Memory saved locally. Run `git push` when ready."
 
-## Coming from 3.1
+## Coming from 3.1 or 3.2
 
-Nothing to migrate: 3.2 adds the `::EXCLUDE{}` block and the behaviors above; existing files are read as before.
+Nothing to migrate: 3.2 adds the `::EXCLUDE{}` block and the behaviors above, 3.3 adds `log owner --from deepseek`; existing files are read as before.
 
 ## Coming from 3.0
 

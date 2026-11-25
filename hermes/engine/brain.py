@@ -110,6 +110,9 @@ brain.py v1.5  可移植 Agent 大脑（brain 仓库）的单文件工具。
   otp issue|revoke|list <名>                  owner 在场时给顶门发一次性码（env/otp.json 只存哈希）
   pair <对方公钥> --scope 标签 ; unseal <文件>  配对时才封：范围内的行封给对方与 owner，写 declaration.md
   log owner|agent "<原文>" ; recognize [--days N] 原始轨迹按日追加到 log/；认人＝owner 发言对 soul 锚点命中率≥0.30 且零越界
+  log owner <deepseek_data-日期.zip|解压目录> --from deepseek [--dry-run]
+      3.3 聊天导出进 log/：只取每个会话当前分支上用户的提问，按本机时区落到提问当天，
+      src: 记会话与消息号，再跑一遍不重复；回答不是 owner 的话，不读
   provenance init|check|repair [--transcript JSONL]  来源键 by:；无 owner 证据的边界读作建议；review [--staged] 是每个写入者的同一道门
   import <目录|文件> --from <名> ; verify [--online] ; instructions sync|check ; remote-check <url> ; migrate-2to3
       别的模型或别的会话交回来的交接单先当候选，与基线逐块比对后才准替换（2.0 的 REVIEW）：
@@ -150,11 +153,12 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import zipfile
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-VERSION = "2.2"
+VERSION = "2.3"
 GENERATED_BY = f"brain.py/{VERSION}"
 OKF_VERSION = "0.2"
 OKF_DIRS = ("soul", "memory", "handoff")
@@ -3245,18 +3249,29 @@ def log_path(repo: Path, date: str | None = None) -> Path:
     return repo / LOG_DIR / f"{date or _today()}.md"
 
 
-def _log_append(repo: Path, who: str, text: str, kind: str = "turn", date: str | None = None) -> Path:
+def _log_append(repo: Path, who: str, text: str, kind: str = "turn", date: str | None = None,
+                at: str | None = None, extra: str = "") -> Path:
     p = log_path(repo, date)
     head = "" if p.is_file() else f"# {date or _today()}\n\n"
     body = text.replace("\r\n", "\n").strip("\n")
-    entry = f"::EVENT{{@{who}, at:{datetime.now():%H:%M}, kind:{kind}}}\n{body}\n\n"
+    stamp = at or f"{datetime.now():%H:%M}"
+    entry = f"::EVENT{{@{who}, at:{stamp}, kind:{kind}{extra}}}\n{body}\n\n"
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "ab") as f:
         f.write((head + entry).encode("utf-8"))
     return p
 
 
-def cmd_log(repo: Path, who: str, text: str | None, file: Path | None, kind: str, show: str | None) -> int:
+def cmd_log(repo: Path, who: str, text: str | None, file: Path | None, kind: str, show: str | None,
+            source: str | None = None, dry_run: bool = False) -> int:
+    if source is not None:
+        if who != "owner":
+            print(f"ERROR   only the owner's words are imported: log owner <export> --from {source}")
+            return 2
+        if not text or text == "-":
+            print(f"ERROR   give the export: log owner <deepseek_data-….zip or its directory> --from {source}")
+            return 2
+        return log_import(repo, Path(text).resolve(), source, dry_run)
     if show is not None:
         p = log_path(repo, show or None)
         if not p.is_file():
@@ -3273,6 +3288,159 @@ def cmd_log(repo: Path, who: str, text: str | None, file: Path | None, kind: str
         return 2
     p = _log_append(repo, "OWNER" if who == "owner" else "AGENT", text, kind=kind)
     print(f"log     {who} -> {p.relative_to(repo).as_posix()} ({len(text.encode('utf-8'))} bytes)")
+    return 0
+
+
+# ---------------------------------------------------------------- log import (3.3): the owner's words from a chat export
+
+DEEPSEEK_FORMAT_VERSION = 3
+LOG_SOURCES = ("deepseek",)
+
+
+def _utc_to_local(stamp: str) -> datetime | None:
+    """'2026-11-11T02:33:23.270Z' (UTC, any fraction) -> this machine's local time; None when malformed."""
+    m = re.match(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?Z$", stamp or "")
+    if not m:
+        return None
+    try:
+        d = datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    frac = (m.group(2) or "")[:6].ljust(6, "0")
+    return d.replace(microsecond=int(frac)).astimezone()
+
+
+def _deepseek_read(src: Path) -> tuple[dict, list[tuple[str, bytes]]]:
+    """manifest.json and the chat_sessions/<id>.json entries of a deepseek_data-*.zip, or of that zip unpacked."""
+    entries: list[tuple[str, bytes]] = []
+    manifest: bytes | None = None
+    if src.is_dir():
+        mp = src / "manifest.json"
+        manifest = mp.read_bytes() if mp.is_file() else None
+        cs = src / "chat_sessions"
+        for p in (sorted(cs.glob("*.json")) if cs.is_dir() else []):
+            entries.append((p.stem, p.read_bytes()))
+    elif src.is_file() and zipfile.is_zipfile(src):
+        with zipfile.ZipFile(src) as z:
+            names = z.namelist()
+            if "manifest.json" in names:
+                manifest = z.read("manifest.json")
+            for n in sorted(names):
+                m = re.match(r"^chat_sessions/([^/]+)\.json$", n)
+                if m:
+                    entries.append((m.group(1), z.read(n)))
+    else:
+        raise ValueError(f"not a DeepSeek export: {src} is neither a zip nor a directory")
+    if manifest is None:
+        raise ValueError(f"not a DeepSeek export: no manifest.json in {src}")
+    try:
+        man = json.loads(manifest.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        raise ValueError(f"manifest.json does not parse: {e}") from None
+    ver = man.get("export_format_version") if isinstance(man, dict) else None
+    if isinstance(ver, int) and ver > DEEPSEEK_FORMAT_VERSION:
+        raise ValueError(f"export format {ver} is newer than this adapter knows ({DEEPSEEK_FORMAT_VERSION}); update brain.py")
+    if ver != DEEPSEEK_FORMAT_VERSION:
+        raise ValueError(f"export_format_version is {ver!r}, expected {DEEPSEEK_FORMAT_VERSION}")
+    return man, entries
+
+
+def deepseek_turns(src: Path) -> tuple[list[dict], dict]:
+    """The owner's questions on the kept branch of every conversation in a DeepSeek export, oldest first.
+
+    A turn: sid, mid, when (this machine's local time or None), utc (the stamp as exported), text, files.
+    The kept branch is the chain from current_message_id back to the root, so a question the owner
+    edited away is not read. The answers are not the owner's words and are not read either."""
+    _, entries = _deepseek_read(src)
+    turns: list[dict] = []
+    stats = {"sessions": 0, "unreadable": 0, "no_text": 0, "off_branch": 0}
+    for sid, raw in entries:
+        try:
+            sess = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            sess = None
+        if not isinstance(sess, dict) or not isinstance(sess.get("messages"), list):
+            stats["unreadable"] += 1
+            continue
+        stats["sessions"] += 1
+        sid = str(sess.get("id") or sid)
+        byid: dict[int, dict] = {}
+        for msg in sess["messages"]:
+            if isinstance(msg, dict) and isinstance(msg.get("id"), int):
+                byid[msg["id"]] = msg
+        cur = sess.get("current_message_id")
+        if cur not in byid:
+            cur = max(byid) if byid else None
+        branch: list[dict] = []
+        seen: set[int] = set()
+        while cur in byid and cur not in seen:
+            seen.add(cur)
+            branch.append(byid[cur])
+            cur = byid[cur].get("parent_id")
+        branch.reverse()
+        stats["off_branch"] += sum(1 for m in byid.values() if m.get("role") == "USER" and m["id"] not in seen)
+        for msg in branch:
+            if msg.get("role") != "USER":
+                continue
+            frags = msg.get("fragments") if isinstance(msg.get("fragments"), list) else []
+            text = "\n".join(f["content"] for f in frags
+                             if isinstance(f, dict) and f.get("type") == "REQUEST" and isinstance(f.get("content"), str)).strip()
+            files = [e["file_name"] for f in frags if isinstance(f, dict) and f.get("type") == "FILE" and isinstance(f.get("files"), list)
+                     for e in f["files"] if isinstance(e, dict) and isinstance(e.get("file_name"), str)]
+            if not text:
+                stats["no_text"] += 1
+                continue
+            utc = str(msg.get("inserted_at") or "")
+            turns.append({"sid": sid, "mid": msg["id"], "when": _utc_to_local(utc), "utc": utc, "text": text, "files": files})
+    floor = datetime.min.replace(tzinfo=timezone.utc)
+    turns.sort(key=lambda t: (t["when"] is None, t["when"] or floor, t["sid"], t["mid"]))
+    return turns, stats
+
+
+def _log_sources_seen(repo: Path) -> set[str]:
+    """The src: keys already in log/, so an import never writes a turn twice."""
+    d = repo / LOG_DIR
+    seen: set[str] = set()
+    if d.is_dir():
+        for p in d.glob("*.md"):
+            seen.update(m.group(1) for m in re.finditer(r"\bsrc:(deepseek:[^,}\s]+)", read_text(p)))
+    return seen
+
+
+def log_import(repo: Path, src: Path, source: str, dry_run: bool) -> int:
+    """The owner's words from a chat export into log/: one ::EVENT{} per question, on the day of the question
+    by this machine's clock, src: naming the conversation and the message; a second run adds nothing."""
+    if source not in LOG_SOURCES:
+        print(f"ERROR   unknown source {source!r}; known: {', '.join(LOG_SOURCES)}")
+        return 2
+    try:
+        turns, stats = deepseek_turns(src)
+    except (ValueError, OSError, zipfile.BadZipFile) as e:
+        print(f"ERROR   {e}")
+        return 2
+    seen = _log_sources_seen(repo)
+    written = already = 0
+    days: dict[str, int] = {}
+    for t in turns:
+        key = f"deepseek:{t['sid']}#{t['mid']}"
+        if key in seen:
+            already += 1
+            continue
+        seen.add(key)
+        when = t["when"]
+        date = f"{when:%Y-%m-%d}" if when else _today()
+        at = f"{when:%H:%M}" if when else None
+        body = t["text"] + ("\n[files: " + ", ".join(t["files"]) + "]" if t["files"] else "")
+        extra = f", src:{key}" + (f", utc:{t['utc']}" if t["utc"] else "")
+        days[date] = days.get(date, 0) + 1
+        if not dry_run:
+            _log_append(repo, "OWNER", body, kind="turn", date=date, at=at, extra=extra)
+        written += 1
+    verb = "would write" if dry_run else "wrote"
+    print(f"log     import {source}: {stats['sessions']} conversation(s), {verb} {written} turn(s), {already} already there, "
+          f"{stats['no_text']} without text, {stats['off_branch']} edited away, {stats['unreadable']} unreadable")
+    for d in sorted(days):
+        print(f"        {LOG_DIR}/{d}.md +{days[d]}")
     return 0
 
 
@@ -4523,6 +4691,8 @@ def main(argv=None) -> int:
     lo.add_argument("--file", help="从文件读文本")
     lo.add_argument("--kind", default="turn", help="turn / decision / unlock ...")
     lo.add_argument("--show", nargs="?", const="", help="打印某天的日志（缺省今天）")
+    lo.add_argument("--from", dest="source", help="3.3 导入：text 位置给导出文件或目录；deepseek = DeepSeek 官方导出 deepseek_data-日期.zip，用户的提问按日进 log/")
+    lo.add_argument("--dry-run", action="store_true", help="导入只报数不写")
 
     rz = sub.add_parser("recognize", help="3.0 认人：owner 发言对 soul 锚点的命中率（默认门槛 0.30）与边界矛盾")
     rz.add_argument("--repo", default=str(default_repo))
@@ -4619,7 +4789,8 @@ def main(argv=None) -> int:
         identity = Path(args.identity).expanduser() if args.identity else Path.home() / ".age" / "key.txt"
         return cmd_unseal(Path(args.infile).resolve(), identity, args.age_dir)
     if args.cmd == "log":
-        return cmd_log(Path(args.repo).resolve(), args.who, args.text, Path(args.file).resolve() if args.file else None, args.kind, args.show)
+        return cmd_log(Path(args.repo).resolve(), args.who, args.text, Path(args.file).resolve() if args.file else None, args.kind, args.show,
+                       args.source, args.dry_run)
     if args.cmd == "recognize":
         return cmd_recognize(Path(args.repo).resolve(), args.days, args.since, args.json, Path(args.soul).resolve() if args.soul else None)
     if args.cmd == "provenance":

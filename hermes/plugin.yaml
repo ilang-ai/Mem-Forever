@@ -1,5 +1,5 @@
 name: mem-forever
-version: 3.2.1
+version: 3.3.0
 description: "Mem-Forever: your private Git repository is the agent's brain. Profile, one file per memory, a hand-off note that says where you stopped, the owner's words verbatim, a ledger of doors; the same repository every other AI tool reads."
 author: iLang Inc.
 license: MIT

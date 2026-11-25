@@ -46,7 +46,7 @@ from agent.memory_provider import MemoryProvider, RecallStatus, spawn_context_th
 logger = logging.getLogger(__name__)
 
 NAME = "mem-forever"
-VERSION = "3.2.1"
+VERSION = "3.3.0"
 TEMPLATE = "https://github.com/ilang-ai/Mem-Forever"
 LABEL = "Mem-Forever"
 

@@ -4,6 +4,7 @@ One `## YYYY-MM-DD` section per day, newest first, prose bullets (OKF v0.2 reser
 
 ## 2026-11-24
 
+- Mem-Forever 3.3.0: `brain.py log owner <deepseek_data-….zip or directory> --from deepseek` brings the owner's questions from a DeepSeek chat export (export format 3) into `log/`, one `::EVENT{}` per question on the kept branch of each conversation, on the day of the question by this machine's clock with `utc:` kept, `[files: …]` for attachments, `src:conversation#message` so a second run adds nothing; answers, thinking and edited-away questions are not read; `--dry-run` counts. brain.py 2.3, 45 scenarios.
 - Mem-Forever 3.2.1, the Hermes plugin after the catalog review (https://github.com/NousResearch/hermes-agent/pull/155307): the engine the plugin runs is its own pinned copy, `hermes/engine/brain.py` (byte-identical to `tools/brain.py`, checked by the tests and by CI), run with the brain as `--repo`; the brain's own `tools/brain.py`, which `git pull` and the upstream sync can change, is never executed by the plugin. git and the engine get a minimal environment (PATH, HOME, locale, `GIT_*`, `SSH_*`, `GPG_*`, proxies, `BRAIN_*`), not Hermes's provider keys. `ledger_verify` leaves the model tool: a row's `verify` command is the owner's to run in a terminal. 38 scenarios.
 
 ## 2026-11-13
