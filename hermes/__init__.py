@@ -22,7 +22,12 @@ executed by the provider. git and the engine get a minimal environment (PATH, HO
 ``GIT_*``, ``SSH_*``, ``GPG_*``, proxies, ``BRAIN_*``), not Hermes's provider keys. Ledger
 verification, which runs each row's own ``verify`` command, is not a model action.
 
-Nothing leaves the machine except git traffic to the brain's own remote. The provider
+The brain repository's own git hooks (``tools/hooks``, which run its unpinned ``tools/brain.py``)
+are never run: the provider commits and pushes with ``--no-verify`` and runs the same gate
+through its pinned engine first, ``review --staged`` and ``check`` before a commit, ``remote-check``
+before a push that carries memory to a remote the owner has not confirmed once. Nothing leaves the
+machine except git traffic to the brain's own remote and that one visibility lookup of the remote
+(api.github.com or gitee.com, repository name only). The provider
 holds no credentials: the ledger lives in the brain, encoded at rest (reversible, not
 encryption), and a row reaches the context only through ``unlock`` with the owner's
 grant on this machine. Subagent and cron runs read the brain and never write to it.
@@ -34,6 +39,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -46,7 +52,7 @@ from agent.memory_provider import MemoryProvider, RecallStatus, spawn_context_th
 logger = logging.getLogger(__name__)
 
 NAME = "mem-forever"
-VERSION = "3.3.0"
+VERSION = "3.3.1"
 TEMPLATE = "https://github.com/ilang-ai/Mem-Forever"
 LABEL = "Mem-Forever"
 
@@ -54,6 +60,8 @@ LABEL = "Mem-Forever"
 ENTRY_FILES = ("handoff/CURRENT.md", "soul/soul.md", "soul/agent.md", "memory/MEMORY.md")
 # What a session leaves behind and the next one must save (README §4.2 step 2).
 SAVE_PATHS = ("soul", "memory", "handoff", "log", "log.md")
+# What the push guard treats as private memory: the pattern of the template's tools/hooks/pre-push.
+_PRIVATE_RE = re.compile(r"^(soul|memory|handoff|vault|env|log|pair|projects|mirror|\.ilang)/|^log\.md$")
 
 # The engine the provider runs: this plugin's pinned copy of the template's tools/brain.py.
 ENGINE = Path(__file__).resolve().parent / "engine" / "brain.py"
@@ -529,16 +537,22 @@ class MemForeverProvider(MemoryProvider):
     def _engine(self, *args: str, text: Optional[str] = None, timeout: int = _ENGINE_TIMEOUT) -> dict[str, Any]:
         """Run the plugin's engine (``engine/brain.py``) on the brain (``--repo``); ``text`` feeds stdin
         (``-`` arguments read it). The brain's own ``tools/brain.py`` is never executed."""
+        with self._lock:
+            return self._engine_locked(*args, text=text, timeout=timeout)
+
+    def _engine_locked(self, *args: str, text: Optional[str] = None, timeout: int = _ENGINE_TIMEOUT,
+                       with_repo: bool = True) -> dict[str, Any]:
+        """The engine call itself; the caller holds ``self._lock``. ``with_repo=False`` for the engine
+        commands that take no ``--repo`` (``remote-check``)."""
         if self._repo is None:
             return {"ok": False, "error": "no brain bound"}
-        cmd = [sys.executable, "-X", "utf8", str(ENGINE), *args, "--repo", str(self._repo)]
+        cmd = [sys.executable, "-X", "utf8", str(ENGINE), *args] + (["--repo", str(self._repo)] if with_repo else [])
         run_kwargs: dict[str, Any] = {"input": text} if text is not None else {"stdin": subprocess.DEVNULL}
         try:
-            with self._lock:
-                proc = subprocess.run(
-                    cmd, cwd=str(self._repo), capture_output=True, text=True, encoding="utf-8",
-                    errors="replace", timeout=timeout, env=self._env(), check=False, **run_kwargs,
-                )
+            proc = subprocess.run(
+                cmd, cwd=str(self._repo), capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=timeout, env=self._env(), check=False, **run_kwargs,
+            )
         except subprocess.TimeoutExpired:
             return {"ok": False, "error": f"engine {args[0]} timed out after {timeout}s"}
         except OSError as exc:
@@ -586,8 +600,15 @@ class MemForeverProvider(MemoryProvider):
                 return {"committed": 0}
             try:
                 self._git("add", "-A", "--", *SAVE_PATHS, timeout=30)
+                # The template's pre-commit gate, run by the pinned engine, never by the brain's own hooks.
+                for gate in (("review", "--staged"), ("check",)):
+                    res = self._engine_locked(*gate)
+                    if not res.get("ok"):
+                        what = "review rejected the change" if gate[0] == "review" else "check failed"
+                        detail = (res.get("error") or res.get("output") or "").strip()
+                        return {"error": f"{what}; nothing committed" + (f": {detail[-600:]}" if detail else "")}
                 message = f"mem-forever ({why}): {len(dirty)} file(s), Hermes session {self._session_id[:8]}"
-                proc = self._git("commit", "-q", "-m", message, timeout=30)
+                proc = self._git("commit", "-q", "--no-verify", "-m", message, timeout=30)
             except (subprocess.TimeoutExpired, OSError) as exc:
                 return {"error": f"git commit failed: {exc}"}
             if proc.returncode != 0:
@@ -616,12 +637,45 @@ class MemForeverProvider(MemoryProvider):
         except (subprocess.TimeoutExpired, OSError):
             pass
 
+    def _push_guard(self, remote: str) -> str:
+        """The template's pre-push gate, run by the pinned engine, never by the brain's own hooks: a push
+        that carries private memory goes only to a remote that is private (``remote-check``) or that the
+        owner confirmed once (``git config --bool brain.allowPush.<remote> true``). Empty string means go."""
+        try:
+            upstream = self._git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", timeout=15)
+            carries = True
+            if upstream.returncode == 0 and upstream.stdout.strip():
+                diff = self._git("diff", "--name-only", f"{upstream.stdout.strip()}..HEAD", timeout=30)
+                if diff.returncode == 0:
+                    carries = any(_PRIVATE_RE.match(line.strip()) for line in diff.stdout.splitlines() if line.strip())
+            if not carries:
+                return ""
+            allow = self._git("config", "--bool", f"brain.allowPush.{remote}", timeout=15)
+            if allow.returncode == 0 and allow.stdout.strip() == "true":
+                return ""
+            url_proc = self._git("remote", "get-url", remote, timeout=15)
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            return f"push guard: {exc}"
+        url = url_proc.stdout.strip() if url_proc.returncode == 0 else remote
+        res = self._engine_locked("remote-check", url, with_repo=False, timeout=30)
+        if res.get("ok"):
+            return ""
+        if res.get("exit") == 1:
+            return f"push guard: {url} is PUBLIC; this push carries private memory. Push cancelled."
+        return (f"push guard: cannot tell whether {url} is private. If it is your own private repository, "
+                f"confirm once: git config --bool brain.allowPush.{remote} true")
+
     def _push(self) -> dict[str, Any]:
-        if not self._remote_name():
+        remote = self._remote_name()
+        if not remote:
             return {"skipped": "no remote"}
         with self._lock:
+            refused = self._push_guard(remote)
+            if refused:
+                logger.warning("mem-forever: %s", refused)
+                return {"error": refused}
             try:
-                proc = self._git("push", "-q")
+                proc = self._git("push", "-q", "--no-verify")
             except (subprocess.TimeoutExpired, OSError) as exc:
                 return {"error": f"git push failed: {exc}"}
         if proc.returncode != 0:

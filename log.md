@@ -2,6 +2,10 @@
 
 One `## YYYY-MM-DD` section per day, newest first, prose bullets (OKF v0.2 reserved file). Record changes to the layout, rules and tools here. Memories go to `memory/`, progress goes to `handoff/CURRENT.md`.
 
+## 2026-11-26
+
+- Mem-Forever 3.3.1, the Hermes plugin after the second catalog review (https://github.com/NousResearch/hermes-agent/pull/155307): the brain repository's own git hooks are never run by the provider. It commits and pushes with `--no-verify` and runs the template's gate itself through its pinned engine first: `review --staged` and `check` before a commit, and before a push that carries memory the pre-push guard (private paths in the diff, `brain.allowPush.<remote>`, `remote-check <url>`), with the same refusals and the same one-time confirmation. The test replaces `tools/hooks/pre-commit` and `pre-push` with scripts that leave a marker and checks that a commit, a refused commit (an exclusion without `out:`), a refused push (a remote the engine cannot classify) and a confirmed push never run them. README and the module docstring say so, and name the one lookup the push guard makes (api.github.com or gitee.com, repository name only).
+
 ## 2026-11-24
 
 - Mem-Forever 3.3.0: `brain.py log owner <deepseek_data-….zip or directory> --from deepseek` brings the owner's questions from a DeepSeek chat export (export format 3) into `log/`, one `::EVENT{}` per question on the kept branch of each conversation, on the day of the question by this machine's clock with `utc:` kept, `[files: …]` for attachments, `src:conversation#message` so a second run adds nothing; answers, thinking and edited-away questions are not read; `--dry-run` counts. brain.py 2.3, 45 scenarios.

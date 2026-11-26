@@ -237,6 +237,43 @@ def main() -> int:
         ok(not again._dirty(), "initialize of the next session commits the leftover memory file")
         ok(_git(brain, "log", "-1", "--format=%s").stdout.startswith("mem-forever (previous session)"), "the leftover commit names the previous session")
 
+        # the brain's own hooks never run: commit and push go through the pinned engine's gate, not tools/hooks
+        hooks_dir = brain / "tools" / "hooks"
+        hook_marker = brain / "hook-ran.txt"
+        hook_text = "#!/bin/sh\necho ran > \"$(git rev-parse --show-toplevel)/hook-ran.txt\"\nexit 99\n"
+        saved_hooks = {name: (hooks_dir / name).read_bytes() for name in ("pre-commit", "pre-push")}
+        for name in saved_hooks:
+            (hooks_dir / name).write_text(hook_text, encoding="utf-8", newline="\n")
+            if os.name != "nt":
+                os.chmod(hooks_dir / name, 0o755)
+        ok(_git(brain, "config", "core.hooksPath").stdout.strip() == "tools/hooks",
+           "the brain has the template's hooks installed (core.hooksPath tools/hooks)")
+        (brain / "memory" / "note-two.md").write_text("---\ntype: project\nname: note-two\ndescription: a note\n---\n\nsecond note\n", encoding="utf-8")
+        gated = json.loads(provider.handle_tool_call("mem_forever", {"action": "commit", "text": "hooks are not ours"}))
+        ok(gated.get("ok") and gated["saved"].get("committed") == 1 and not hook_marker.exists(),
+           "commit runs the pinned engine's review and check and never the brain's tools/hooks/pre-commit")
+        (brain / "memory" / "bad-exclusion.md").write_text("---\ntype: project\nname: bad-exclusion\ndescription: a guess\n---\n\n::EXCLUDE{gap-1|candidates:a;b|left:a|conf:tentative|by:agent_inferred}\n", encoding="utf-8")
+        refused_commit = json.loads(provider.handle_tool_call("mem_forever", {"action": "commit", "text": "a guess"}))
+        ok("error" in refused_commit and "review rejected" in refused_commit["error"] and not hook_marker.exists(),
+           "the same gate holds: review --staged rejects an exclusion without out:, nothing is committed")
+        (brain / "memory" / "bad-exclusion.md").unlink()
+        _git(brain, "reset", "-q", "--", "memory/bad-exclusion.md")
+        remote_dir = Path(tmp) / "remote.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(remote_dir)], check=True)
+        _git(brain, "remote", "add", "origin", str(remote_dir))
+        _git(brain, "config", "push.default", "current")
+        guarded = provider._push()
+        ok("error" in guarded and "cannot tell whether" in guarded["error"] and not hook_marker.exists(),
+           "a push to a remote the engine cannot classify is refused by the pinned push guard, never by tools/hooks/pre-push")
+        _git(brain, "config", "--bool", "brain.allowPush.origin", "true")
+        pushed = provider._push()
+        branch = _git(brain, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        ok(pushed.get("pushed") and not hook_marker.exists()
+           and _git(remote_dir, "rev-parse", branch).stdout.strip() == _git(brain, "rev-parse", "HEAD").stdout.strip(),
+           f"once the owner confirmed the remote the push goes through with --no-verify and the brain's pre-push hook never ran ({pushed})")
+        for name, data in saved_hooks.items():
+            (hooks_dir / name).write_bytes(data)
+
         # subagent and cron runs never write
         sub = plugin.MemForeverProvider({"repo": str(brain)})
         sub.initialize("session-0003", hermes_home=str(home), platform="cli", agent_context="subagent")
